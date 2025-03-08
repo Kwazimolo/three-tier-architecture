@@ -38,7 +38,6 @@ jobs:
             echo "pytest-cov==4.1.0" >> requirements.txt
             echo "pyyaml==6.0.1" >> requirements.txt
             echo "boto3==1.28.38" >> requirements.txt
-            echo "infracost-python==0.1.0" >> requirements.txt
             echo "awscli==1.29.38" >> requirements.txt
             echo "matplotlib==3.7.2" >> requirements.txt
             echo "pandas==2.0.3" >> requirements.txt
@@ -71,6 +70,12 @@ jobs:
           unzip awscliv2.zip
           sudo ./aws/install
           aws --version
+
+      - name: Install Infracost
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+          infracost --version
+         
           
       - name: Create results directory structure
         run: |
