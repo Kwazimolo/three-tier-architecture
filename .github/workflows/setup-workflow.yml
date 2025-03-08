@@ -1,4 +1,4 @@
-# .github/workflows/templates/setup/action.yml
+# .github/workflows/setup-workflow.yml
 name: Setup Environment
 
 on:
@@ -60,7 +60,7 @@ jobs:
           mkdir -p results/cost-analysis
           
       - name: Upload directory structure as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: results-structure
           path: results/
