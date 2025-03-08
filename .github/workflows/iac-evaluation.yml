@@ -4,8 +4,11 @@ name: IaC Tools Evaluation
 
 on:
   workflow_dispatch:  # Manual trigger
-  schedule:
-    - cron: '0 0 * * 0'  # Weekly run
+  push:
+    branches:
+      - '**'  # This will match all branches
+  # schedule:
+  #   - cron: '0 0 * * 0'  # Weekly run
 
 jobs:
   setup:
