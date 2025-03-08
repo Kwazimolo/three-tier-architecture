@@ -1,17 +1,15 @@
 # .github/workflows/iac-evaluation.yml
+
 name: IaC Tools Evaluation
 
 on:
   workflow_dispatch:  # Manual trigger
-  push:
-    branches:
-      - '**'  # This will match all branches
-  # schedule:
-  #   - cron: '0 0 * * 0'  # Weekly run
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly run
 
 jobs:
   setup:
-    uses: ./.github/workflows/setup/action.yml
+    uses: ./.github/workflows/setup-workflow.yml
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -21,7 +19,7 @@ jobs:
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
-  #   uses: ./.github/workflows/static-analysis.yml
+  #   uses: ./.github/workflows/static-analysis-workflow.yml
   #   with:
   #     tool: ${{ matrix.tool }}
   #   secrets:
@@ -33,7 +31,7 @@ jobs:
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
-  #   uses: ./.github/workflows/deployment.yml
+  #   uses: ./.github/workflows/deployment-workflow.yml
   #   with:
   #     tool: ${{ matrix.tool }}
   #   secrets:
@@ -45,7 +43,7 @@ jobs:
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
-  #   uses: ./.github/workflows/performance.yml
+  #   uses: ./.github/workflows/performance-workflow.yml
   #   with:
   #     tool: ${{ matrix.tool }}
   #   secrets:
@@ -57,7 +55,7 @@ jobs:
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
-  #   uses: ./.github/workflows/cost-analysis.yml
+  #   uses: ./.github/workflows/cost-analysis-workflow.yml
   #   with:
   #     tool: ${{ matrix.tool }}
   #   secrets:
@@ -66,7 +64,7 @@ jobs:
 
   # report:
   #   needs: [static-analysis, deployment, performance, cost-analysis]
-  #   uses: ./.github/workflows/report-generation.yml
+  #   uses: ./.github/workflows/report-generation-workflow.yml
   #   secrets:
   #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
