@@ -1,0 +1,87 @@
+# .github/workflows/iac-evaluation.yml
+name: IaC Tools Evaluation
+
+on:
+  workflow_dispatch:  # Manual trigger
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly run
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup environment
+        uses: ./.github/workflows/templates/setup.yml
+
+  # static-analysis:
+  #   needs: setup
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       tool: [terraform, cloudformation, opentofu]
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+        
+  #     - name: Run static analysis
+  #       uses: ./.github/workflows/templates/static-analysis.yml
+  #       with:
+  #         tool: ${{ matrix.tool }}
+
+  # deployment:
+  #   needs: static-analysis
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       tool: [terraform, cloudformation, opentofu]
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+        
+  #     - name: Run deployment
+  #       uses: ./.github/workflows/templates/deployment.yml
+  #       with:
+  #         tool: ${{ matrix.tool }}
+
+  # performance:
+  #   needs: deployment
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       tool: [terraform, cloudformation, opentofu]
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+        
+  #     - name: Run performance tests
+  #       uses: ./.github/workflows/templates/performance.yml
+  #       with:
+  #         tool: ${{ matrix.tool }}
+
+  # cost-analysis:
+  #   needs: deployment
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       tool: [terraform, cloudformation, opentofu]
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+        
+  #     - name: Run cost analysis
+  #       uses: ./.github/workflows/templates/cost-analysis.yml
+  #       with:
+  #         tool: ${{ matrix.tool }}
+
+  # report:
+  #   needs: [static-analysis, deployment, performance, cost-analysis]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+        
+  #     - name: Generate report
+  #       uses: ./.github/workflows/templates/report-generation.yml
