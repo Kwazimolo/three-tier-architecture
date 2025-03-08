@@ -23,14 +23,34 @@ jobs:
     
       - name: Setup Dependencies
         run: |
+        # Check multiple possible locations
+        if [ -f "requirements.txt" ]; then
+          echo "Found requirements.txt in repository root"
           pip install -r requirements.txt
+        elif [ -f "../../requirements.txt" ]; then
+          echo "Found requirements.txt in relative path"
+          pip install -r ../../requirements.txt
+        else
+          echo "requirements.txt not found, creating minimal version"
+          # Create a minimal requirements.txt if it doesn't exist
+          echo "# Dependencies for IaC Tools Evaluation" > requirements.txt
+          echo "pytest==7.4.0" >> requirements.txt
+          echo "pytest-cov==4.1.0" >> requirements.txt
+          echo "pyyaml==6.0.1" >> requirements.txt
+          echo "boto3==1.28.38" >> requirements.txt
+          echo "infracost-python==0.1.0" >> requirements.txt
+          echo "awscli==1.29.38" >> requirements.txt
+          echo "matplotlib==3.7.2" >> requirements.txt
+          echo "pandas==2.0.3" >> requirements.txt
+          pip install -r requirements.txt
+        fi
     
       - name: Setup AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-2
+          aws-region: eu-west-1
       
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v2
