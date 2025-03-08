@@ -10,13 +10,14 @@ on:
   #   - cron: '0 0 * * 0'  # Weekly run
 
 jobs:
-  Setup:
+  setup:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      
       - name: Setup environment
-        uses: ./.github/workflows/templates/setup.yml
+        uses: ./.github/workflows/templates/setup
 
   # static-analysis:
   #   needs: setup
@@ -29,7 +30,7 @@ jobs:
   #       uses: actions/checkout@v3
         
   #     - name: Run static analysis
-  #       uses: ./.github/workflows/templates/static-analysis.yml
+  #       uses: ./.github/workflows/templates/static-analysis
   #       with:
   #         tool: ${{ matrix.tool }}
 
@@ -44,7 +45,7 @@ jobs:
   #       uses: actions/checkout@v3
         
   #     - name: Run deployment
-  #       uses: ./.github/workflows/templates/deployment.yml
+  #       uses: ./.github/workflows/templates/deployment
   #       with:
   #         tool: ${{ matrix.tool }}
 
@@ -59,7 +60,7 @@ jobs:
   #       uses: actions/checkout@v3
         
   #     - name: Run performance tests
-  #       uses: ./.github/workflows/templates/performance.yml
+  #       uses: ./.github/workflows/templates/performance
   #       with:
   #         tool: ${{ matrix.tool }}
 
@@ -74,7 +75,7 @@ jobs:
   #       uses: actions/checkout@v3
         
   #     - name: Run cost analysis
-  #       uses: ./.github/workflows/templates/cost-analysis.yml
+  #       uses: ./.github/workflows/templates/cost-analysis
   #       with:
   #         tool: ${{ matrix.tool }}
 
@@ -86,4 +87,4 @@ jobs:
   #       uses: actions/checkout@v3
         
   #     - name: Generate report
-  #       uses: ./.github/workflows/templates/report-generation.yml
+  #       uses: ./.github/workflows/templates/report-generation
