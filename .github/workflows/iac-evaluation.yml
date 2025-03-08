@@ -11,98 +11,62 @@ on:
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: Setup environment
-        uses: ./.github/workflows/setup
-        secrets:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    uses: ./.github/workflows/setup.yml@main
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   # static-analysis:
   #   needs: setup
-  #   runs-on: ubuntu-latest
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-        
-  #     - name: Run static analysis
-  #       uses: ./.github/workflows/static-analysis
-  #       with:
-  #         tool: ${{ matrix.tool }}
-  #       secrets:
-  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #   uses: ./.github/workflows/static-analysis.yml@main
+  #   with:
+  #     tool: ${{ matrix.tool }}
+  #   secrets:
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   # deployment:
   #   needs: static-analysis
-  #   runs-on: ubuntu-latest
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-        
-  #     - name: Run deployment
-  #       uses: ./.github/workflows/deployment
-  #       with:
-  #         tool: ${{ matrix.tool }}
-  #       secrets:
-  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #   uses: ./.github/workflows/deployment.yml@main
+  #   with:
+  #     tool: ${{ matrix.tool }}
+  #   secrets:
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   # performance:
   #   needs: deployment
-  #   runs-on: ubuntu-latest
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-        
-  #     - name: Run performance tests
-  #       uses: ./.github/workflows/performance
-  #       with:
-  #         tool: ${{ matrix.tool }}
-  #       secrets:
-  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #   uses: ./.github/workflows/performance.yml@main
+  #   with:
+  #     tool: ${{ matrix.tool }}
+  #   secrets:
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   # cost-analysis:
   #   needs: deployment
-  #   runs-on: ubuntu-latest
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-        
-  #     - name: Run cost analysis
-  #       uses: ./.github/workflows/cost-analysis
-  #       with:
-  #         tool: ${{ matrix.tool }}
-  #       secrets:
-  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #   uses: ./.github/workflows/cost-analysis.yml@main
+  #   with:
+  #     tool: ${{ matrix.tool }}
+  #   secrets:
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   # report:
   #   needs: [static-analysis, deployment, performance, cost-analysis]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-        
-  #     - name: Generate report
-  #       uses: ./.github/workflows/report-generation
-  #       secrets:
-  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #   uses: ./.github/workflows/report-generation.yml@main
+  #   secrets:
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
