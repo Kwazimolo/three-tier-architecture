@@ -49,7 +49,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1
+          aws-region: eu-west-2
       
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v2
@@ -74,28 +74,4 @@ jobs:
         run: |
           curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
           infracost --version
-         
-          
-      - name: Create results directory structure
-        run: |
-          mkdir -p results/complexity
-          mkdir -p results/security
-          mkdir -p results/deployment
-          mkdir -p results/performance
-          mkdir -p results/cost
-          mkdir -p results/final-report
-
-          # Add placeholder files so the artifact has content
-          echo "Created: $(date)" > results/complexity/.placeholder
-          echo "Created: $(date)" > results/security/.placeholder
-          echo "Created: $(date)" > results/deployment/.placeholder
-          echo "Created: $(date)" > results/performance/.placeholder
-          echo "Created: $(date)" > results/cost/.placeholder
-          echo "Created: $(date)" > results/final-report/.placeholder
-          
-      - name: Upload directory structure as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: results-structure
-          path: results/
           
