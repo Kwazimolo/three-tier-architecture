@@ -82,6 +82,14 @@ jobs:
           mkdir -p results/deployment
           mkdir -p results/performance
           mkdir -p results/cost-analysis
+
+          # Add placeholder files so the artifact has content
+          echo "Created: $(date)" > results/complexity/.placeholder
+          echo "Created: $(date)" > results/security/.placeholder
+          echo "Created: $(date)" > results/deployment/.placeholder
+          echo "Created: $(date)" > results/performance/.placeholder
+          echo "Created: $(date)" > results/cost/.placeholder
+          echo "Created: $(date)" > results/final-report/.placeholder
           
       - name: Upload directory structure as artifact
         uses: actions/upload-artifact@v4
