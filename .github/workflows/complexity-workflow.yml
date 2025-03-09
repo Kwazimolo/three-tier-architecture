@@ -1,0 +1,88 @@
+# .github/workflows/complexity-workflow.yml
+
+name: Code Complexity Analysis
+
+on:
+  workflow_call:
+    inputs:
+      tool:
+        required: true
+        type: string
+        description: 'The IaC tool to analyze (terraform, cloudformation, opentofu)'
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  analyze-complexity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+          
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+          
+      - name: Download results structure
+        uses: actions/download-artifact@v4
+        with:
+          name: results-structure
+          path: results/
+      
+      - name: Install Checkov
+        run: |
+          pip install checkov
+          checkov --version
+      
+      - name: Run Complexity Analysis
+        run: |
+          # Determine which directory to analyze
+          if [ "${{ inputs.tool }}" == "terraform" ]; then
+            IaC_DIR="terraform"
+          elif [ "${{ inputs.tool }}" == "opentofu" ]; then
+            IaC_DIR="opentofu"
+          elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
+            IaC_DIR="cloudformation"
+          fi
+          
+          # Run complexity analysis with Checkov
+          echo "Analyzing complexity for ${{ inputs.tool }}..."
+          
+          # Count total lines of code, excluding comments and blank lines
+          TOTAL_LINES=$(find $IaC_DIR -type f -name "*.tf" -o -name "*.yaml" -o -name "*.yml" -o -name "*.json" | xargs cat | grep -v "^#" | grep -v "^//" | grep -v "^$" | wc -l)
+          echo "Total lines of code: $TOTAL_LINES" > results/complexity/${{ inputs.tool }}_summary.txt
+          
+          # Count resources
+          if [ "${{ inputs.tool }}" == "terraform" ] || [ "${{ inputs.tool }}" == "opentofu" ]; then
+            RESOURCE_COUNT=$(grep -r "^resource" $IaC_DIR | wc -l)
+            MODULE_COUNT=$(grep -r "^module" $IaC_DIR | wc -l)
+          elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
+            RESOURCE_COUNT=$(grep -r "\"Type\":" $IaC_DIR | wc -l)
+            MODULE_COUNT=0
+          fi
+          
+          echo "Resource count: $RESOURCE_COUNT" >> results/complexity/${{ inputs.tool }}_summary.txt
+          echo "Module count: $MODULE_COUNT" >> results/complexity/${{ inputs.tool }}_summary.txt
+          
+          # Run Checkov for more detailed complexity analysis
+          checkov -d $IaC_DIR --output json > results/complexity/${{ inputs.tool }}_checkov.json
+          
+          # Generate complexity report
+          python scripts/analysers/complexity_analyzer.py --tool ${{ inputs.tool }} --checkov-results results/complexity/${{ inputs.tool }}_checkov.json --output results/complexity/${{ inputs.tool }}_report.json
+    
+      - name: Upload Complexity Analysis Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: complexity-results-${{ inputs.tool }}
+          path: results/complexity/
