@@ -6,9 +6,9 @@ resource "aws_vpc" "main" {
   enable_dns_support   = true # Required for enabling prviate DNS for SSM
 
   tags = {
-    Name        = "main-vpc-3tier"
+    Name        = "OT-main-vpc-3tier"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Project     = "3TierArchitecture"
     Owner       = "Infrastructure"
   }
@@ -19,9 +19,9 @@ resource "aws_internet_gateway" "main-igw" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name        = "main-igw"
+    Name        = "OT-main-igw"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Network"
     Role        = "InternetGateway"
   }
@@ -40,10 +40,10 @@ resource "aws_route_table" "public_rt_web" {
   }
 
   tags = {
-    Name        = "public-rt-${count.index + 1}"
+    Name        = "OT-public-rt-${count.index + 1}"
     AZ          = "az${count.index + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Web"
     Type        = "Public"
   }
@@ -57,10 +57,10 @@ resource "aws_subnet" "public" {
   availability_zone = each.value.availability_zone
 
   tags = {
-    Name        = "public-subnet-${tonumber(each.key) + 1}"
+    Name        = "OT-public-subnet-${tonumber(each.key) + 1}"
     AZ          = "az${tonumber(each.key) + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Web"
     Type        = "Public"
   }
@@ -86,10 +86,10 @@ resource "aws_route_table" "private_app_rt" {
   }
 
   tags = {
-    Name        = "private-app-rt-${count.index + 1}"
+    Name        = "OT-private-app-rt-${count.index + 1}"
     AZ          = "az${count.index + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Application"
     Type        = "Private"
   }
@@ -104,10 +104,10 @@ resource "aws_route_table" "private_db_rt" {
   }
 
   tags = {
-    Name        = "private-db-rt-${count.index + 1}"
+    Name        = "OT-private-db-rt-${count.index + 1}"
     AZ          = "az${count.index + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Data"
     Type        = "Private"
   }
@@ -129,10 +129,10 @@ resource "aws_subnet" "private_app" {
   availability_zone = each.value.availability_zone
 
   tags = {
-    Name        = "private-app-subnet-${tonumber(each.key) + 1}"
+    Name        = "OT-private-app-subnet-${tonumber(each.key) + 1}"
     AZ          = "az${tonumber(each.key) + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Application"
     Type        = "Private"
   }
@@ -152,10 +152,10 @@ resource "aws_subnet" "private_db" {
   availability_zone = each.value.availability_zone
 
   tags = {
-    Name        = "private-db-subnet-${tonumber(each.key) + 1}"
+    Name        = "OT-private-db-subnet-${tonumber(each.key) + 1}"
     AZ          = "az${tonumber(each.key) + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Data"
     Type        = "Private"
   }
@@ -171,9 +171,9 @@ resource "aws_nat_gateway" "app_tier_nat" {
   allocation_id = aws_eip.app_nat_eip[count.index].id
 
   tags = {
-    Name        = "application-nat-gw-${count.index + 1}"
+    Name        = "OT-application-nat-gw-${count.index + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Application"
     Role        = "NATGateway"
     AZ          = "az${count.index + 1}"
@@ -187,9 +187,9 @@ resource "aws_eip" "app_nat_eip" {
   domain = "vpc"
 
   tags = {
-    Name        = "application-nat-eip-${count.index + 1}"
+    Name        = "OT-application-nat-eip-${count.index + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Application"
     Role        = "EIP-NAT"
     AZ          = "az${count.index + 1}"
@@ -204,9 +204,9 @@ resource "aws_nat_gateway" "db_tier_nat" {
   allocation_id = aws_eip.db_nat_eip[count.index].id
 
   tags = {
-    Name        = "db-nat-gw-${count.index + 1}"
+    Name        = "OT-db-nat-gw-${count.index + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Data"
     Role        = "NATGateway"
     AZ          = "az${count.index + 1}"
@@ -220,9 +220,9 @@ resource "aws_eip" "db_nat_eip" {
   domain = "vpc"
 
   tags = {
-    Name        = "storage-nat-eip-${count.index + 1}"
+    Name        = "OT-storage-nat-eip-${count.index + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Data"
     Role        = "EIP-NAT"
     AZ          = "az${count.index + 1}"

@@ -5,7 +5,7 @@ data "aws_region" "current" {}
 # Securtiy group for Bastion Host
 
 resource "aws_security_group" "bastion_sg" {
-  name        = "bastion_sg"
+  name        = "OT-bastion_sg"
   description = "Security group for Bastion Host on the presentation tier"
   vpc_id      = var.vpc_id
 
@@ -26,10 +26,10 @@ resource "aws_security_group" "bastion_sg" {
   }
 
   tags = {
-    Name        = "bastion_sg"
+    Name        = "OT-bastion_sg"
     Environment = "Production"
     Tier        = "Presentation"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Role        = "Bastion"
   }
 }
@@ -37,7 +37,7 @@ resource "aws_security_group" "bastion_sg" {
 # Securtiy group for App Host
 
 resource "aws_security_group" "app_sg" {
-  name        = "app-sg"
+  name        = "OT-app-sg"
   description = "Security group for application servers on the application tier"
   vpc_id      = var.vpc_id
 
@@ -66,10 +66,10 @@ resource "aws_security_group" "app_sg" {
   }
 
   tags = {
-    Name        = "app-sg"
+    Name        = "OT-app-sg"
     Environment = "Production"
     Tier        = "Application"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Role        = "WebServer"
   }
 }
@@ -77,7 +77,7 @@ resource "aws_security_group" "app_sg" {
 # Security group for Load balancer facing the application tier
 
 resource "aws_security_group" "alb_sg" {
-  name        = "alb-sg"
+  name        = "OT-alb-sg"
   description = "Security group for load balancer on the web tier"
   vpc_id      = var.vpc_id
 
@@ -98,10 +98,10 @@ resource "aws_security_group" "alb_sg" {
   }
 
   tags = {
-    Name        = "alb-sg"
+    Name        = "OT-alb-sg"
     Environment = "Production"
     Tier        = "Web"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Role        = "LoadBalancer"
   }
 }
@@ -109,7 +109,7 @@ resource "aws_security_group" "alb_sg" {
 # Security group for data tier database
 
 resource "aws_security_group" "db_sg" {
-  name        = "db-sg"
+  name        = "OT-db-sg"
   description = "Allow application tier to communicate to database tier"
   vpc_id      = var.vpc_id
 
@@ -122,16 +122,16 @@ resource "aws_security_group" "db_sg" {
   }
 
   tags = {
-    Name        = "db-sg"
+    Name        = "OT-db-sg"
     Environment = "Production"
     Tier        = "Data"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Role        = "Database"
   }
 }
 
 resource "aws_security_group" "vpc_endpoints_sg" {
-  name        = "vpce-sg"
+  name        = "OT-vpce-sg"
   description = "Security group for VPC endpoints"
   vpc_id      = var.vpc_id
 
@@ -144,10 +144,10 @@ resource "aws_security_group" "vpc_endpoints_sg" {
   }
 
   tags = {
-    Name        = "vnet-sg"
+    Name        = "OT-vnet-sg"
     Environment = "Production"
     Tier        = "Network"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Role        = "VPCEndpoint"
   }
 }

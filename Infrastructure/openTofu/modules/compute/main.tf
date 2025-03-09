@@ -13,10 +13,10 @@ resource "aws_instance" "app_tier_ec2" {
   user_data              = file("${path.module}/services.sh")
 
   tags = {
-    Name        = "app-instance-${count.index + 1}"
+    Name        = "OT-app-instance-${count.index + 1}"
     AZ          = "az${count.index + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Application"
     Role        = "WebServer"
     Project     = "3TierArchitecture"
@@ -33,10 +33,10 @@ resource "aws_instance" "bastion_ec2" {
   vpc_security_group_ids      = [var.security_group_ids.bastion]
 
   tags = {
-    Name        = "bastion-instance-${count.index + 1}"
+    Name        = "OT-bastion-instance-${count.index + 1}"
     AZ          = "az${count.index + 1}"
     Environment = "Production"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Tier        = "Presentation"
     Role        = "BastionHost"
     Project     = "3TierArchitecture"

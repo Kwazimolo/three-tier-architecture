@@ -9,17 +9,17 @@ resource "aws_lb" "app_alb" {
   subnets            = values(var.public_subnet_ids)
   
   tags = {
-    Name        = "App-Tier-LB"
+    Name        = "OT-App-Tier-LB"
     Environment = "Production"
     Tier        = "Web"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
   }
 }
 
 # Load balancer target group
 
 resource "aws_lb_target_group" "app_lb_tg" {
-  name        = "App-Tier-tg"
+  name        = "OT-App-Tier-tg"
   port        = 80
   protocol    = "HTTP"
   target_type = "instance"
@@ -41,10 +41,10 @@ resource "aws_lb_target_group" "app_lb_tg" {
   }
   
   tags = {
-    Name        = "App-Tier-tg"
+    Name        = "OT-App-Tier-tg"
     Environment = "Production"
     Tier        = "Web"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
   }
 }
 
@@ -61,10 +61,10 @@ resource "aws_lb_listener" "app_listener" {
   }
   
   tags = {
-    Name        = "App-Tier-HTTP-Listener"
+    Name        = "OT-App-Tier-HTTP-Listener"
     Environment = "Production"
     Tier        = "Web"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
   }
 }
 

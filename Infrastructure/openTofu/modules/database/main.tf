@@ -4,10 +4,10 @@ resource "aws_db_subnet_group" "data_tier_subnet_group" {
   subnet_ids = values(var.database_subnet_ids)
 
   tags = {
-    Name        = "Data Tier DB Subnet Group"
+    Name        = "OT-Data Tier DB Subnet Group"
     Environment = "Production"
     Tier        = "Data"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Role        = "DatabaseSubnetGroup"
   }
 }
@@ -30,10 +30,10 @@ resource "aws_db_instance" "data_tier_db" {
   skip_final_snapshot        = true
   
   tags = {
-    Name        = "Data-Tier-DB-${count.index + 1}"
+    Name        = "OT-Data-Tier-DB-${count.index + 1}"
     Environment = "Production"
     Tier        = "Data"
-    ManagedBy   = "Terraform"
+    ManagedBy   = "OpenTofu"
     Role        = "MySQL-Database"
     Replica     = count.index == 0 ? "Primary" : "Secondary"
   }
