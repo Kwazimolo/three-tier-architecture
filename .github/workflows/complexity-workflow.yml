@@ -47,11 +47,11 @@ jobs:
         run: |
           # Determine which directory to analyse
           if [ "${{ inputs.tool }}" == "terraform" ]; then
-            IaC_DIR="terraform"
+            IaC_DIR="infrastructure/terraform"
           elif [ "${{ inputs.tool }}" == "opentofu" ]; then
-            IaC_DIR="opentofu"
+            IaC_DIR="infrastructure/opentofu"
           elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
-            IaC_DIR="cloudformation"
+            IaC_DIR="infrastructure/cloudformation"
           fi
           
           # Run complexity analysis with Checkov

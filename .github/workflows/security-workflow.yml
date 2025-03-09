@@ -47,13 +47,13 @@ jobs:
         run: |
           # Determine which directory to analyse
           if [ "${{ inputs.tool }}" == "terraform" ]; then
-            IaC_DIR="terraform"
+            IaC_DIR="infrastructure/terraform"
             FRAMEWORK="terraform"
           elif [ "${{ inputs.tool }}" == "opentofu" ]; then
-            IaC_DIR="opentofu"
+            IaC_DIR="infrastructure/opentofu"
             FRAMEWORK="terraform" # Use terraform framework for OpenTofu
           elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
-            IaC_DIR="cloudformation"
+            IaC_DIR="infrastructure/cloudformation"
             FRAMEWORK="cloudformation"
           fi
           
