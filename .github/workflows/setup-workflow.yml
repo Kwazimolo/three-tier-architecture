@@ -78,10 +78,12 @@ jobs:
           
       - name: Create results directory structure
         run: |
-          mkdir -p results/static-analysis
+          mkdir -p results/complexity
+          mkdir -p results/security
           mkdir -p results/deployment
           mkdir -p results/performance
-          mkdir -p results/cost-analysis
+          mkdir -p results/cost
+          mkdir -p results/final-report
 
           # Add placeholder files so the artifact has content
           echo "Created: $(date)" > results/complexity/.placeholder
