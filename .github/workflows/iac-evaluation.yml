@@ -17,12 +17,24 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-  # static-analysis:
+  # complexity:
   #   needs: setup
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
-  #   uses: ./.github/workflows/static-analysis-workflow.yml
+  #   uses: ./.github/workflows/complexity-workflow.yml
+  #   with:
+  #     tool: ${{ matrix.tool }}
+  #   secrets:
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  # security:
+  #   needs: complexity
+  #   strategy:
+  #     matrix:
+  #       tool: [terraform, cloudformation, opentofu]
+  #   uses: ./.github/workflows/security-workflow.yml
   #   with:
   #     tool: ${{ matrix.tool }}
   #   secrets:
@@ -30,7 +42,7 @@ jobs:
   #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   # deployment:
-  #   needs: static-analysis
+  #   needs: security
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
@@ -53,21 +65,23 @@ jobs:
   #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-  # cost-analysis:
+  # cost:
   #   needs: deployment
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
-  #   uses: ./.github/workflows/cost-analysis-workflow.yml
+  #   uses: ./.github/workflows/cost-workflow.yml
   #   with:
   #     tool: ${{ matrix.tool }}
   #   secrets:
   #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #     INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
 
   # report:
-  #   needs: [static-analysis, deployment, performance, cost-analysis]
-  #   uses: ./.github/workflows/report-generation-workflow.yml
+  #   needs: [complexity, security, deployment, performance, cost]
+  #   uses: ./.github/workflows/report-workflow.yml
   #   secrets:
   #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
