@@ -1,39 +1,3 @@
-# ─ main.tf             # Main configurations and module calls
-# ├── variables.tf        # Root level variables
-# ├── outputs.tf         # Root level outputs
-# └── modules/
-#     ├── networking/    # All network related resources
-#     │   ├── main.tf
-#     │   ├── variables.tf
-#     │   └── outputs.tf
-#     │   # Contains: VPC, Subnets, IGW, NAT, Route Tables, NACLs
-#     │
-#     ├── load_balancing/    # ALB configurations
-#     │   ├── main.tf
-#     │   ├── variables.tf
-#     │   └── outputs.tf
-#     │   # Contains: ALBs, Target Groups, Listeners
-#     │
-#     ├── compute/      # EC2 and ECS configurations
-#     │   ├── main.tf
-#     │   ├── variables.tf
-#     │   └── outputs.tf
-#     │   # Contains: Launch Templates, ASGs, ECS Tasks/Services
-#     │
-#     ├── database/     # Database tier
-#     │   ├── main.tf
-#     │   ├── variables.tf
-#     │   └── outputs.tf
-#     │   # Contains: RDS, Subnet Groups, Parameter Groups
-#     │
-#     └── security/     # Security configurations
-#         ├── main.tf
-#         ├── variables.tf
-#         └── outputs.tf
-#         # Contains: Security Groups, IAM Roles, SSM configs
-
-#### Setup ####
-
 module "networking" {
   source = "./modules/networking"
 }

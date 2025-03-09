@@ -1,0 +1,206 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: '3-Tier Architecture Infrastructure - Compute Stack'
+
+Parameters:
+  AppSecurityGroupId:
+    Description: Security group ID for application instances
+    Type: String
+
+  BastionSecurityGroupId:
+    Description: Security group ID for bastion host
+    Type: String
+
+  PrivateAppSubnet1Id:
+    Description: ID of the first private app subnet
+    Type: String
+
+  PrivateAppSubnet2Id:
+    Description: ID of the second private app subnet
+    Type: String
+
+  PublicSubnet1Id:
+    Description: ID of the first public subnet
+    Type: String
+
+  PublicSubnet2Id:
+    Description: ID of the second public subnet
+    Type: String
+
+  KeyName:
+    Description: Name of the SSH key pair
+    Type: String
+    Default: dissertation_key
+
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+
+  AmiId:
+    Description: AMI ID for EC2 instances
+    Type: String
+    Default: ami-0fed63ea358539e44
+
+Resources:
+  # Application Server Instances
+  ApplicationInstance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PrivateAppSubnet1Id
+      SecurityGroupIds: 
+        - !Ref AppSecurityGroupId
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Log output for debugging
+          exec > /var/log/user-data.log 2>&1
+          set -x
+
+          # Update packages
+          sudo yum update -y
+
+          # Install necessary packages
+          sudo amazon-linux-extras enable php7.2
+          sudo yum install -y httpd mariadb-server php-mbstring php-xml
+
+          # Start and enable Apache
+          sudo systemctl start httpd
+          sudo systemctl enable httpd
+
+          # Set permissions for Apache
+          sudo usermod -a -G apache ec2-user
+          sudo chown -R ec2-user:apache /var/www
+          sudo chmod 2775 /var/www && find /var/www -type d -exec sudo chmod 2775 {} \;
+          find /var/www -type f -exec sudo chmod 0664 {} \;
+
+          # Create the index.html file
+          echo '<h1>Hello world from a highly available group of EC2 instances</h1>' | sudo tee /var/www/html/index.html
+
+          # Restart Apache to apply changes
+          sudo systemctl restart httpd
+      Tags:
+        - Key: Name
+          Value: CF-application-server-1
+        - Key: AZ
+          Value: az1
+        - Key: Environment
+          Value: Production
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Application
+        - Key: Role
+          Value: WebServer
+        - Key: Project
+          Value: 3TierArchitecture
+        - Key: Owner
+          Value: Infrastructure
+
+  ApplicationInstance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PrivateAppSubnet2Id
+      SecurityGroupIds: 
+        - !Ref AppSecurityGroupId
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Log output for debugging
+          exec > /var/log/user-data.log 2>&1
+          set -x
+
+          # Update packages
+          sudo yum update -y
+
+          # Install necessary packages
+          sudo amazon-linux-extras enable php7.2
+          sudo yum install -y httpd mariadb-server php-mbstring php-xml
+
+          # Start and enable Apache
+          sudo systemctl start httpd
+          sudo systemctl enable httpd
+
+          # Set permissions for Apache
+          sudo usermod -a -G apache ec2-user
+          sudo chown -R ec2-user:apache /var/www
+          sudo chmod 2775 /var/www && find /var/www -type d -exec sudo chmod 2775 {} \;
+          find /var/www -type f -exec sudo chmod 0664 {} \;
+
+          # Create the index.html file
+          echo '<h1>Hello world from a highly available group of EC2 instances</h1>' | sudo tee /var/www/html/index.html
+
+          # Restart Apache to apply changes
+          sudo systemctl restart httpd
+      Tags:
+        - Key: Name
+          Value: CF-application-server-2
+        - Key: AZ
+          Value: az2
+        - Key: Environment
+          Value: Production
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Application
+        - Key: Role
+          Value: WebServer
+        - Key: Project
+          Value: 3TierArchitecture
+        - Key: Owner
+          Value: Infrastructure
+
+  # Bastion Host
+  BastionHost:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref PublicSubnet1Id
+          GroupSet: 
+            - !Ref BastionSecurityGroupId
+          AssociatePublicIpAddress: true
+      Tags:
+        - Key: Name
+          Value: CF-bastion-host-1
+        - Key: AZ
+          Value: az1
+        - Key: Environment
+          Value: Production
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Presentation
+        - Key: Role
+          Value: BastionHost
+        - Key: Project
+          Value: 3TierArchitecture
+        - Key: Owner
+          Value: Infrastructure
+
+Outputs:
+  AppInstance1Id:
+    Description: ID of the first application instance
+    Value: !Ref ApplicationInstance1
+    Export:
+      Name: !Sub "${AWS::StackName}-AppInstance1Id"
+
+  AppInstance2Id:
+    Description: ID of the second application instance
+    Value: !Ref ApplicationInstance2
+    Export:
+      Name: !Sub "${AWS::StackName}-AppInstance2Id"
+
+  BastionPublicIP:
+    Description: Public IP address of the bastion host
+    Value: !GetAtt BastionHost.PublicIp
+    Export:
+      Name: !Sub "${AWS::StackName}-BastionPublicIP"

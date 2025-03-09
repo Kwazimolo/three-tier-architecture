@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: '3-Tier Architecture Infrastructure - Main Stack'
+
+Resources:
+  NetworkingStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.eu-west-1.amazonaws.com/${CloudFormationBucket}/cloudformation/networking.yml'
+      TimeoutInMinutes: 30
+      Parameters:
+        EnvironmentName: Production
+
+  SecurityStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.eu-west-1.amazonaws.com/${CloudFormationBucket}/cloudformation/security.yml'
+      TimeoutInMinutes: 20
+      Parameters:
+        VpcId: !GetAtt NetworkingStack.Outputs.VpcId
+        BastionCidrIP: 209.35.86.151/32
+
+  ComputeStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: 
+      - NetworkingStack
+      - SecurityStack
+    Properties:
+      TemplateURL: !Sub 'https://s3.eu-west-1.amazonaws.com/${CloudFormationBucket}/cloudformation/compute.yml'
+      TimeoutInMinutes: 30
+      Parameters:
+        AppSecurityGroupId: !GetAtt SecurityStack.Outputs.AppSecurityGroupId
+        BastionSecurityGroupId: !GetAtt SecurityStack.Outputs.BastionSecurityGroupId
+        PrivateAppSubnet1Id: !GetAtt NetworkingStack.Outputs.PrivateAppSubnet1Id
+        PrivateAppSubnet2Id: !GetAtt NetworkingStack.Outputs.PrivateAppSubnet2Id
+        PublicSubnet1Id: !GetAtt NetworkingStack.Outputs.PublicSubnet1Id
+        PublicSubnet2Id: !GetAtt NetworkingStack.Outputs.PublicSubnet2Id
+        KeyName: dissertation_key
+
+  LoadBalancingStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - NetworkingStack
+      - SecurityStack
+      - ComputeStack
+    Properties:
+      TemplateURL: !Sub 'https://s3.eu-west-1.amazonaws.com/${CloudFormationBucket}/cloudformation/loadbalancing.yml'
+      TimeoutInMinutes: 20
+      Parameters:
+        VpcId: !GetAtt NetworkingStack.Outputs.VpcId
+        AlbSecurityGroupId: !GetAtt SecurityStack.Outputs.AlbSecurityGroupId
+        PublicSubnet1Id: !GetAtt NetworkingStack.Outputs.PublicSubnet1Id
+        PublicSubnet2Id: !GetAtt NetworkingStack.Outputs.PublicSubnet2Id
+        AppInstance1Id: !GetAtt ComputeStack.Outputs.AppInstance1Id
+        AppInstance2Id: !GetAtt ComputeStack.Outputs.AppInstance2Id
+
+  DatabaseStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - NetworkingStack
+      - SecurityStack
+    Properties:
+      TemplateURL: !Sub 'https://s3.eu-west-1.amazonaws.com/${CloudFormationBucket}/cloudformation/database.yml'
+      TimeoutInMinutes: 30
+      Parameters:
+        DbSecurityGroupId: !GetAtt SecurityStack.Outputs.DbSecurityGroupId
+        PrivateDbSubnet1Id: !GetAtt NetworkingStack.Outputs.PrivateDbSubnet1Id
+        PrivateDbSubnet2Id: !GetAtt NetworkingStack.Outputs.PrivateDbSubnet2Id
+
+Parameters:
+  CloudFormationBucket:
+    Type: String
+    Description: S3 bucket containing nested stack templates
+    Default: tf-state-3tier-architecture 
+
+Outputs:
+  AppLoadBalancerDNS:
+    Description: DNS name of the application load balancer
+    Value: !GetAtt LoadBalancingStack.Outputs.LoadBalancerDNS
+
+  BastionPublicIP:
+    Description: Public IP of the bastion host
+    Value: !GetAtt ComputeStack.Outputs.BastionPublicIP
+
+  DatabaseEndpoint:
+    Description: Primary database endpoint
+    Value: !GetAtt DatabaseStack.Outputs.PrimaryDBEndpoint

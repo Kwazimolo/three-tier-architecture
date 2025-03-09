@@ -1,0 +1,563 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: '3-Tier Architecture Infrastructure - Networking Stack'
+
+Parameters:
+  EnvironmentName:
+    Description: Environment name
+    Type: String
+    Default: Production
+
+Resources:
+  # VPC Definition
+  MainVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: CF-main-vpc-3tier
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Project
+          Value: 3TierArchitecture
+        - Key: Owner
+          Value: Infrastructure
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: CF-main-igw
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Network
+        - Key: Role
+          Value: InternetGateway
+
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MainVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Public Subnets
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MainVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: eu-west-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: CF-public-subnet-1
+        - Key: AZ
+          Value: az1
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Web
+        - Key: Type
+          Value: Public
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MainVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: eu-west-1b
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: CF-public-subnet-2
+        - Key: AZ
+          Value: az2
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Web
+        - Key: Type
+          Value: Public
+
+  # Private App Subnets
+  PrivateAppSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MainVPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: eu-west-1a
+      Tags:
+        - Key: Name
+          Value: CF-private-app-subnet-1
+        - Key: AZ
+          Value: az1
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Application
+        - Key: Type
+          Value: Private
+
+  PrivateAppSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MainVPC
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: eu-west-1b
+      Tags:
+        - Key: Name
+          Value: CF-private-app-subnet-2
+        - Key: AZ
+          Value: az2
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Application
+        - Key: Type
+          Value: Private
+
+  # Private DB Subnets
+  PrivateDbSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MainVPC
+      CidrBlock: 10.0.5.0/24
+      AvailabilityZone: eu-west-1a
+      Tags:
+        - Key: Name
+          Value: CF-private-db-subnet-1
+        - Key: AZ
+          Value: az1
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Data
+        - Key: Type
+          Value: Private
+
+  PrivateDbSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MainVPC
+      CidrBlock: 10.0.6.0/24
+      AvailabilityZone: eu-west-1b
+      Tags:
+        - Key: Name
+          Value: CF-private-db-subnet-2
+        - Key: AZ
+          Value: az2
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Data
+        - Key: Type
+          Value: Private
+
+  # EIPs for NAT Gateways
+  AppNatEIP1:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: CF-application-nat-eip-1
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Application
+        - Key: Role
+          Value: EIP-NAT
+        - Key: AZ
+          Value: az1
+
+  AppNatEIP2:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: CF-application-nat-eip-2
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Application
+        - Key: Role
+          Value: EIP-NAT
+        - Key: AZ
+          Value: az2
+
+  DbNatEIP1:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: CF-storage-nat-eip-1
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Data
+        - Key: Role
+          Value: EIP-NAT
+        - Key: AZ
+          Value: az1
+
+  DbNatEIP2:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: CF-storage-nat-eip-2
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Data
+        - Key: Role
+          Value: EIP-NAT
+        - Key: AZ
+          Value: az2
+
+  # NAT Gateways
+  AppNATGateway1:
+    Type: AWS::EC2::NatGateway
+    DependsOn: GatewayAttachment
+    Properties:
+      AllocationId: !GetAtt AppNatEIP1.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: CF-application-nat-gw-1
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Application
+        - Key: Role
+          Value: NATGateway
+        - Key: AZ
+          Value: az1
+
+  AppNATGateway2:
+    Type: AWS::EC2::NatGateway
+    DependsOn: GatewayAttachment
+    Properties:
+      AllocationId: !GetAtt AppNatEIP2.AllocationId
+      SubnetId: !Ref PublicSubnet2
+      Tags:
+        - Key: Name
+          Value: CF-application-nat-gw-2
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Application
+        - Key: Role
+          Value: NATGateway
+        - Key: AZ
+          Value: az2
+
+  DbNATGateway1:
+    Type: AWS::EC2::NatGateway
+    DependsOn: GatewayAttachment
+    Properties:
+      AllocationId: !GetAtt DbNatEIP1.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: CF-db-nat-gw-1
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Data
+        - Key: Role
+          Value: NATGateway
+        - Key: AZ
+          Value: az1
+
+  DbNATGateway2:
+    Type: AWS::EC2::NatGateway
+    DependsOn: GatewayAttachment
+    Properties:
+      AllocationId: !GetAtt DbNatEIP2.AllocationId
+      SubnetId: !Ref PublicSubnet2
+      Tags:
+        - Key: Name
+          Value: CF-db-nat-gw-2
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Data
+        - Key: Role
+          Value: NATGateway
+        - Key: AZ
+          Value: az2
+
+  # Route Tables
+  PublicRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MainVPC
+      Tags:
+        - Key: Name
+          Value: CF-public-rt-1
+        - Key: AZ
+          Value: az1
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Web
+        - Key: Type
+          Value: Public
+
+  PublicRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MainVPC
+      Tags:
+        - Key: Name
+          Value: CF-public-rt-2
+        - Key: AZ
+          Value: az2
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Web
+        - Key: Type
+          Value: Public
+
+  PrivateAppRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MainVPC
+      Tags:
+        - Key: Name
+          Value: CF-private-app-rt-1
+        - Key: AZ
+          Value: az1
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Application
+        - Key: Type
+          Value: Private
+
+  PrivateAppRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MainVPC
+      Tags:
+        - Key: Name
+          Value: CF-private-app-rt-2
+        - Key: AZ
+          Value: az2
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Application
+        - Key: Type
+          Value: Private
+
+  PrivateDbRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MainVPC
+      Tags:
+        - Key: Name
+          Value: CF-private-db-rt-1
+        - Key: AZ
+          Value: az1
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Data
+        - Key: Type
+          Value: Private
+
+  PrivateDbRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MainVPC
+      Tags:
+        - Key: Name
+          Value: CF-private-db-rt-2
+        - Key: AZ
+          Value: az2
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Data
+        - Key: Type
+          Value: Private
+
+  # Routes
+  PublicRoute1:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicRoute2:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PrivateAppRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateAppRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref AppNATGateway1
+
+  PrivateAppRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateAppRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref AppNATGateway2
+
+  PrivateDbRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateDbRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref DbNATGateway1
+
+  PrivateDbRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateDbRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref DbNATGateway2
+
+  # Route Table Associations
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable2
+
+  PrivateAppSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateAppSubnet1
+      RouteTableId: !Ref PrivateAppRouteTable1
+
+  PrivateAppSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateAppSubnet2
+      RouteTableId: !Ref PrivateAppRouteTable2
+
+  PrivateDbSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateDbSubnet1
+      RouteTableId: !Ref PrivateDbRouteTable1
+
+  PrivateDbSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateDbSubnet2
+      RouteTableId: !Ref PrivateDbRouteTable2
+
+Outputs:
+  VpcId:
+    Description: The ID of the VPC
+    Value: !Ref MainVPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VpcId"
+
+  PublicSubnet1Id:
+    Description: The ID of the first public subnet
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnet1Id"
+
+  PublicSubnet2Id:
+    Description: The ID of the second public subnet
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnet2Id"
+
+  PrivateAppSubnet1Id:
+    Description: The ID of the first private app subnet
+    Value: !Ref PrivateAppSubnet1
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateAppSubnet1Id"
+
+  PrivateAppSubnet2Id:
+    Description: The ID of the second private app subnet
+    Value: !Ref PrivateAppSubnet2
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateAppSubnet2Id"
+
+  PrivateDbSubnet1Id:
+    Description: The ID of the first private db subnet
+    Value: !Ref PrivateDbSubnet1
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateDbSubnet1Id"
+
+  PrivateDbSubnet2Id:
+    Description: The ID of the second private db subnet
+    Value: !Ref PrivateDbSubnet2
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateDbSubnet2Id"

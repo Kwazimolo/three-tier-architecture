@@ -1,0 +1,198 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: '3-Tier Architecture Infrastructure - Security Stack'
+
+Parameters:
+  VpcId:
+    Description: The ID of the VPC
+    Type: String
+
+  BastionCidrIP:
+    Description: The CIDR block for SSH access to bastion host
+    Type: String
+    Default: 209.35.86.151/32
+
+  EnvironmentName:
+    Description: Name of the environment
+    Type: String
+    Default: Development
+
+Resources:
+  # Bastion Security Group
+  BastionSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Bastion Host on the presentation tier
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref BastionCidrIP
+          Description: SSH into the instance
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 0
+          CidrIp: 0.0.0.0/0
+          Description: Allow Outbound connectivity
+      Tags:
+        - Key: Name
+          Value: CF-bastion-sg
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Presentation
+        - Key: Role
+          Value: Bastion
+
+  # ALB Security Group
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for load balancer on the web tier
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: Access to webpage
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 0
+          CidrIp: 0.0.0.0/0
+          Description: Allow all Outbound connectivity
+      Tags:
+        - Key: Name
+          Value: CF-alb-sg
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Web
+        - Key: Role
+          Value: LoadBalancer
+
+  # App Security Group
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for application servers on the application tier
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
+          Description: SSH into the instance from bastion host
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 0
+          CidrIp: 0.0.0.0/0
+          Description: Allow Outbound connectivity
+      Tags:
+        - Key: Name
+          Value: CF-app-sg
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Application
+        - Key: Role
+          Value: WebServer
+
+  # App Security Group Ingress from ALB
+  AppSecurityGroupIngressFromALB:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId: !Ref AlbSecurityGroup
+      Description: Allow connectivity from ALB
+
+  # DB Security Group
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow application tier to communicate to database tier
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+          Description: Allow connection to database
+      Tags:
+        - Key: Name
+          Value: CF-db-sg
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Data
+        - Key: Role
+          Value: Database
+
+  # VPC Endpoint Security Group
+  VpcEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for VPC endpoints
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+          Description: Allow HTTPS from EC2 instances
+      Tags:
+        - Key: Name
+          Value: CF-vnet-sg
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Tier
+          Value: Network
+        - Key: Role
+          Value: VPCEndpoint
+
+Outputs:
+  BastionSecurityGroupId:
+    Description: The ID of the Bastion security group
+    Value: !Ref BastionSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-BastionSecurityGroupId"
+
+  AlbSecurityGroupId:
+    Description: The ID of the ALB security group
+    Value: !Ref AlbSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-AlbSecurityGroupId"
+
+  AppSecurityGroupId:
+    Description: The ID of the App security group
+    Value: !Ref AppSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-AppSecurityGroupId"
+
+  DbSecurityGroupId:
+    Description: The ID of the DB security group
+    Value: !Ref DbSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-DbSecurityGroupId"
+
+  VpcEndpointSecurityGroupId:
+    Description: The ID of the VPC Endpoint security group
+    Value: !Ref VpcEndpointSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-VpcEndpointSecurityGroupId"

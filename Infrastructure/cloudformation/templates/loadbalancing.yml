@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: '3-Tier Architecture Infrastructure - Load Balancing Stack'
+
+Parameters:
+  VpcId:
+    Description: The ID of the VPC
+    Type: String
+
+  AlbSecurityGroupId:
+    Description: Security group ID for ALB
+    Type: String
+
+  PublicSubnet1Id:
+    Description: ID of the first public subnet
+    Type: String
+
+  PublicSubnet2Id:
+    Description: ID of the second public subnet
+    Type: String
+
+  AppInstance1Id:
+    Description: ID of the first application instance
+    Type: String
+
+  AppInstance2Id:
+    Description: ID of the second application instance
+    Type: String
+
+Resources:
+  # Application Load Balancer
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: CF-App-Tier-LB
+      Scheme: internet-facing
+      Type: application
+      SecurityGroups:
+        - !Ref AlbSecurityGroupId
+      Subnets:
+        - !Ref PublicSubnet1Id
+        - !Ref PublicSubnet2Id
+      Tags:
+        - Key: Name
+          Value: CF-App-Tier-LB
+        - Key: Environment
+          Value: Production
+        - Key: Tier
+          Value: Web
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # Target Group
+  AppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: CF-App-Tier-tg
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      VpcId: !Ref VpcId
+      HealthCheckEnabled: true
+      HealthCheckPath: /
+      HealthCheckPort: traffic-port
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      HealthCheckIntervalSeconds: 30
+      Targets:
+      - Id: !Ref AppInstance1Id
+        Port: 80
+      - Id: !Ref AppInstance2Id
+        Port: 80
+      TargetGroupAttributes:
+        - Key: stickiness.enabled
+          Value: false
+        - Key: stickiness.type
+          Value: app_cookie
+      Tags:
+        - Key: Name
+          Value: CF-App-Tier-tg
+        - Key: Environment
+          Value: Production
+        - Key: Tier
+          Value: Web
+        - Key: ManagedBy
+          Value: CloudFormation
+  # Listener
+  AppListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref AppTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      Tags:
+        - Key: Name
+          Value: CF-App-Tier-HTTP-Listener
+        - Key: Environment
+          Value: Production
+        - Key: Tier
+          Value: Web
+        - Key: ManagedBy
+          Value: CloudFormation
+
+Outputs:
+  LoadBalancerDNS:
+    Description: DNS name of the application load balancer
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+    Export:
+      Name: !Sub "${AWS::StackName}-LoadBalancerDNS"
+
+  TargetGroupArn:
+    Description: ARN of the target group
+    Value: !Ref AppTargetGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-TargetGroupArn"
