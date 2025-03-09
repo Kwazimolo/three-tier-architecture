@@ -8,7 +8,7 @@ on:
       tool:
         required: true
         type: string
-        description: 'The IaC tool to analyze (terraform, cloudformation, opentofu)'
+        description: 'The IaC tool to analyse (terraform, cloudformation, opentofu)'
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -16,7 +16,7 @@ on:
         required: true
 
 jobs:
-  analyze-complexity:
+  analyse-complexity:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -45,7 +45,7 @@ jobs:
       
       - name: Run Complexity Analysis
         run: |
-          # Determine which directory to analyze
+          # Determine which directory to analyse
           if [ "${{ inputs.tool }}" == "terraform" ]; then
             IaC_DIR="terraform"
           elif [ "${{ inputs.tool }}" == "opentofu" ]; then
@@ -55,7 +55,7 @@ jobs:
           fi
           
           # Run complexity analysis with Checkov
-          echo "Analyzing complexity for ${{ inputs.tool }}..."
+          echo "analysing complexity for ${{ inputs.tool }}..."
           
           # Count total lines of code, excluding comments and blank lines
           TOTAL_LINES=$(find $IaC_DIR -type f -name "*.tf" -o -name "*.yaml" -o -name "*.yml" -o -name "*.json" | xargs cat | grep -v "^#" | grep -v "^//" | grep -v "^$" | wc -l)

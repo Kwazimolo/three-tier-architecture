@@ -1,0 +1,113 @@
+# .github/workflows/cost-workflow.yml
+
+name: Cost Analysis
+
+on:
+  workflow_call:
+    inputs:
+      tool:
+        required: true
+        type: string
+        description: 'The IaC tool to analyse for cost (terraform, cloudformation, opentofu)'
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      INFRACOST_API_KEY:
+        required: true
+
+jobs:
+  analyse-cost:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+          
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+          
+      - name: Ensure results directory exists
+        run: |
+          mkdir -p results/cost
+      
+      - name: Install cost analysis tools
+        run: |
+          # Install Infracost for Terraform/OpenTofu
+          curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+          infracost --version
+          
+          # Configure Infracost API key
+          infracost configure set api_key ${{ secrets.INFRACOST_API_KEY }}
+          
+          # Install dependencies for AWS Price List API
+          pip install boto3 pandas matplotlib
+      
+      - name: Run cost analysis for Terraform/OpenTofu
+        if: inputs.tool == 'terraform' || inputs.tool == 'opentofu'
+        run: |
+          # Navigate to the tool's directory
+          cd ${{ inputs.tool }}
+          
+          # Initialize Terraform/OpenTofu
+          if [ "${{ inputs.tool }}" == "terraform" ]; then
+            terraform init
+          else
+            tofu init
+          fi
+          
+          # Generate Infracost JSON
+          infracost breakdown --path . --format json --out-file ../results/cost/${{ inputs.tool }}/infracost.json
+          
+          # Generate readable report
+          infracost output --path ../results/cost/${{ inputs.tool }}/infracost.json --format html --out-file ../results/cost/${{ inputs.tool }}/infracost_report.html
+          
+          # Generate text summary
+          infracost output --path ../results/cost/${{ inputs.tool }}/infracost.json --format table --out-file ../results/cost/${{ inputs.tool }}/infracost_summary.txt
+      
+      - name: Run cost analysis for CloudFormation
+        if: inputs.tool == 'cloudformation'
+        run: |
+          # Navigate to CloudFormation directory
+          cd cloudformation
+          
+          # Use AWS Price List API to calculate costs
+          python ../scripts/analysers/cloudformation_cost_analyser.py \
+            --template main.yaml \
+            --output ../results/cost/cloudformation/cost_analysis.json
+          
+          # Generate HTML report
+          python ../scripts/utils/generate_cf_cost_report.py \
+            --input ../results/cost/cloudformation/cost_analysis.json \
+            --output ../results/cost/cloudformation/cost_report.html
+      
+      - name: Generate comprehensive cost report
+        run: |
+          mkdir -p results/cost/${{ inputs.tool }}
+          
+          # Run the cost analysis processor
+          python scripts/analysers/cost_analyser.py \
+            --tool ${{ inputs.tool }} \
+            --cost-data results/cost/${{ inputs.tool }} \
+            --output results/cost/${{ inputs.tool }}/cost_report.json
+          
+          # Generate cost visualizations
+          python scripts/utils/generate_cost_charts.py \
+            --tool ${{ inputs.tool }} \
+            --data results/cost/${{ inputs.tool }}/cost_report.json \
+            --output results/cost/${{ inputs.tool }}/charts
+          
+      - name: Upload Cost Analysis Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-results-${{ inputs.tool }}
+          path: results/cost/

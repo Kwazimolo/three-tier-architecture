@@ -1,0 +1,142 @@
+# .github/workflows/deployment-workflow.yml
+
+name: Deployment Analysis
+
+on:
+  workflow_call:
+    inputs:
+      tool:
+        required: true
+        type: string
+        description: 'The IaC tool to analyse for deployment (terraform, cloudformation, opentofu)'
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  analyse-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+          
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+          
+      - name: Ensure results directory exists
+        run: |
+          mkdir -p results/deployment
+       
+      
+      - name: Install monitoring tools
+        run: |
+          pip install psutil boto3 awscli
+          
+      - name: Prepare deployment measurement
+        run: |
+          # Create unique stack name with timestamp
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          echo "STACK_NAME=${{ inputs.tool }}-test-$TIMESTAMP" >> $GITHUB_ENV
+          echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
+          mkdir -p results/deployment/${{ inputs.tool }}
+          
+      - name: Deploy Infrastructure
+        run: |
+          # Deploy based on tool and measure resource usage
+          if [ "${{ inputs.tool }}" == "terraform" ]; then
+            cd terraform
+            # Init
+            python ../scripts/utils/resource_monitor.py \
+              --command "terraform init" \
+              --output "../results/deployment/${{ inputs.tool }}/init_resources.json" \
+              --interval 0.5
+            
+            # Apply
+            python ../scripts/utils/resource_monitor.py \
+              --command "terraform apply -auto-approve -var='stack_name=${{ env.STACK_NAME }}'" \
+              --output "../results/deployment/${{ inputs.tool }}/apply_resources.json" \
+              --interval 0.5
+            
+          elif [ "${{ inputs.tool }}" == "opentofu" ]; then
+            cd opentofu
+            # Init
+            python ../scripts/utils/resource_monitor.py \
+              --command "tofu init" \
+              --output "../results/deployment/${{ inputs.tool }}/init_resources.json" \
+              --interval 0.5
+              
+            # Apply
+            python ../scripts/utils/resource_monitor.py \
+              --command "tofu apply -auto-approve -var='stack_name=${{ env.STACK_NAME }}'" \
+              --output "../results/deployment/${{ inputs.tool }}/apply_resources.json" \
+              --interval 0.5
+              
+          elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
+            cd cloudformation
+            # Deploy
+            python ../scripts/utils/resource_monitor.py \
+              --command "aws cloudformation deploy --template-file main.yaml --stack-name ${{ env.STACK_NAME }} --capabilities CAPABILITY_IAM" \
+              --output "../results/deployment/${{ inputs.tool }}/deploy_resources.json" \
+              --interval 0.5
+          fi
+          
+          # Record end time
+          echo "END_TIME=$(date +%s)" >> $GITHUB_ENV
+          
+      - name: Collect CloudWatch Metrics
+        run: |
+          # Wait for CloudWatch metrics to become available
+          sleep 60
+          
+          # Collect API call metrics from CloudTrail
+          aws cloudtrail lookup-events --lookup-attributes AttributeKey=ResourceName,AttributeValue=${{ env.STACK_NAME }} > results/deployment/${{ inputs.tool }}/cloudtrail_events.json
+          
+          # Determine which resource monitoring file to use
+          if [ "${{ inputs.tool }}" == "cloudformation" ]; then
+            RESOURCE_FILE="results/deployment/${{ inputs.tool }}/deploy_resources.json"
+          else
+            RESOURCE_FILE="results/deployment/${{ inputs.tool }}/apply_resources.json"
+            INIT_RESOURCE_FILE="results/deployment/${{ inputs.tool }}/init_resources.json"
+          fi
+          
+          # Collect resource creation metrics
+          python scripts/analysers/deployment_analyser.py \
+            --tool ${{ inputs.tool }} \
+            --stack-name ${{ env.STACK_NAME }} \
+            --resource-usage $RESOURCE_FILE \
+            --init-resource-usage ${INIT_RESOURCE_FILE:-""} \
+            --cloudtrail-events results/deployment/${{ inputs.tool }}/cloudtrail_events.json \
+            --start-time ${{ env.START_TIME }} \
+            --end-time ${{ env.END_TIME }} \
+            --output results/deployment/${{ inputs.tool }}/deployment_report.json
+          
+      - name: Cleanup Infrastructure
+        run: |
+          echo "Cleaning up infrastructure..."
+          if [ "${{ inputs.tool }}" == "terraform" ]; then
+            cd terraform
+            terraform destroy -auto-approve -var="stack_name=${{ env.STACK_NAME }}"
+          elif [ "${{ inputs.tool }}" == "opentofu" ]; then
+            cd opentofu
+            tofu destroy -auto-approve -var="stack_name=${{ env.STACK_NAME }}"
+          elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
+            aws cloudformation delete-stack --stack-name ${{ env.STACK_NAME }}
+            aws cloudformation wait stack-delete-complete --stack-name ${{ env.STACK_NAME }}
+          fi
+          
+      - name: Upload Deployment Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-results-${{ inputs.tool }}
+          path: results/deployment/

@@ -1,0 +1,168 @@
+# .github/workflows/report-workflow.yml
+
+name: Final Report Generation
+
+on:
+  workflow_call:
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      GITHUB_TOKEN:
+        required: true
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+          
+      - name: Install report generation dependencies
+        run: |
+          pip install jinja2 pandas matplotlib markdown pygments
+          
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+          
+      - name: Create report directory structure
+        run: |
+          mkdir -p results
+          mkdir -p results/final-report
+          mkdir -p results/final-report/images
+          mkdir -p results/final-report/data
+          
+      - name: Download all analysis results
+        run: |
+          # Function to download artifacts
+          download_artifacts() {
+            local category=$1
+            local tool=$2
+            
+            mkdir -p "results/$category/$tool"
+            echo "Downloading $category results for $tool"
+            
+            artifact_name="$category-results-$tool"
+            
+            # Download artifact
+            echo "Downloading artifact: $artifact_name"
+            artifacts_info=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts?name=$artifact_name" | jq -r '.artifacts | length')
+            
+            if [ "$artifacts_info" != "0" ]; then
+              curl -s -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}"
+
+              - name: Download all analysis results
+              run: |
+                # Download complexity results for all tools
+                for tool in terraform cloudformation opentofu; do
+                  mkdir -p results/complexity/$tool
+                  artifacts=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                    "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts?name=complexity-results-$tool" | jq -r '.artifacts[0].id')
+                  
+                  if [ "$artifacts" != "null" ]; then
+                    wget -O complexity-$tool.zip \
+                      "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifacts/zip" \
+                      --header="Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                      --header="Accept: application/vnd.github.v3+json"
+                    unzip -o complexity-$tool.zip -d results/complexity/$tool
+                    rm complexity-$tool.zip
+                  fi
+                done
+                
+                # Download security results for all tools
+                for tool in terraform cloudformation opentofu; do
+                  mkdir -p results/security/$tool
+                  artifacts=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                    "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts?name=security-results-$tool" | jq -r '.artifacts[0].id')
+                  
+                  if [ "$artifacts" != "null" ]; then
+                    wget -O security-$tool.zip \
+                      "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifacts/zip" \
+                      --header="Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                      --header="Accept: application/vnd.github.v3+json"
+                    unzip -o security-$tool.zip -d results/security/$tool
+                    rm security-$tool.zip
+                  fi
+                done
+                
+                # Download deployment results for all tools
+                for tool in terraform cloudformation opentofu; do
+                  mkdir -p results/deployment/$tool
+                  artifacts=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                    "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts?name=deployment-results-$tool" | jq -r '.artifacts[0].id')
+                  
+                  if [ "$artifacts" != "null" ]; then
+                    wget -O deployment-$tool.zip \
+                      "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifacts/zip" \
+                      --header="Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                      --header="Accept: application/vnd.github.v3+json"
+                    unzip -o deployment-$tool.zip -d results/deployment/$tool
+                    rm deployment-$tool.zip
+                  fi
+                done
+                
+                # Download performance results for all tools
+                for tool in terraform cloudformation opentofu; do
+                  mkdir -p results/performance/$tool
+                  artifacts=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                    "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts?name=performance-results-$tool" | jq -r '.artifacts[0].id')
+                  
+                  if [ "$artifacts" != "null" ]; then
+                    wget -O performance-$tool.zip \
+                      "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifacts/zip" \
+                      --header="Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                      --header="Accept: application/vnd.github.v3+json"
+                    unzip -o performance-$tool.zip -d results/performance/$tool
+                    rm performance-$tool.zip
+                  fi
+                done
+                
+                # Download cost results for all tools
+                for tool in terraform cloudformation opentofu; do
+                  mkdir -p results/cost/$tool
+                  artifacts=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                    "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts?name=cost-results-$tool" | jq -r '.artifacts[0].id')
+                  
+                  if [ "$artifacts" != "null" ]; then
+                    wget -O cost-$tool.zip \
+                      "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifacts/zip" \
+                      --header="Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                      --header="Accept: application/vnd.github.v3+json"
+                    unzip -o cost-$tool.zip -d results/cost/$tool
+                    rm cost-$tool.zip
+                  fi
+                done
+            
+            - name: Generate final report
+              run: |
+                # Generate the final comparison report
+                python scripts/report_generator.py \
+                  --complexity-dir results/complexity \
+                  --security-dir results/security \
+                  --deployment-dir results/deployment \
+                  --performance-dir results/performance \
+                  --cost-dir results/cost \
+                  --output-dir results/final-report
+                
+            - name: Upload Final Report
+              uses: actions/upload-artifact@v4
+              with:
+                name: iac-evaluation-report
+                path: results/final-report/
+                
+            - name: Upload Report to GitHub Pages
+              if: github.ref == 'refs/heads/main'
+              uses: actions/upload-pages-artifact@v2
+              with:
+                path: results/final-report/
