@@ -23,6 +23,35 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: terraform # Branch name
+      
+      - name: Debug environment
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Current branch: $(git branch --show-current)"
+          echo "Repository contents:"
+          ls -la
+          echo "GitHub workspace: $GITHUB_WORKSPACE"
+          echo "Infrastructure directory existence:"
+          ls -la infrastructure/ || echo "Infrastructure directory does not exist"
+          if [ -d "infrastructure" ]; then
+            echo "Infrastructure subdirectories:"
+            find infrastructure -type d | sort
+          fi
+          
+          # Print all environment variables
+          echo "Environment variables:"
+          env | sort
+          
+          # Test directory creation and access
+          echo "Creating test directories..."
+          mkdir -p infrastructure/terraform
+          mkdir -p infrastructure/opentofu
+          mkdir -p infrastructure/cloudformation
+          
+          echo "Testing directory access:"
+          cd infrastructure/terraform && echo "Access to terraform directory successful" && cd ../..
+          cd infrastructure/opentofu && echo "Access to opentofu directory successful" && cd ../..
+          cd infrastructure/cloudformation && echo "Access to cloudformation directory successful" && cd ../..
         
       - name: Setup Python
         uses: actions/setup-python@v3
