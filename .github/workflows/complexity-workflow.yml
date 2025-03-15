@@ -355,11 +355,11 @@ jobs:
             "basic_metrics": {
               "total_files": $(cat results/complexity/${tool}_metrics.json | jq '.total_files'),
               "total_lines": $(cat results/complexity/${tool}_metrics.json | jq '.total_lines'),
-              "resource_count": ${{ steps.basic-metrics.outputs.resource_count }},
-              "module_count": ${{ steps.basic-metrics.outputs.module_count }}
+              "resource_count": $(cat results/complexity/${tool}_metrics.json | jq '.resource_count'),
+              "module_count": $(cat results/complexity/${tool}_metrics.json | jq '.module_count')
             },
             "complexity_score": ${{ steps.tool-analysis.outputs.complexity_score }},
-            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" 
           }
           EOF
           
