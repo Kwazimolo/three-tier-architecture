@@ -91,6 +91,7 @@ jobs:
             TOTAL_LINES=$(find $TEMPLATES_DIR -type f \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" \) 2>/dev/null | xargs cat 2>/dev/null | grep -v "^#" | grep -v "^//" | grep -v "^$" | wc -l || echo "0")
             RESOURCE_COUNT=$(grep -r "$RESOURCE_PATTERN" $TEMPLATES_DIR --include="*.yml" --include="*.yaml" --include="*.json" 2>/dev/null | wc -l || echo "0")
             MODULE_COUNT=$(grep -r "$MODULE_PATTERN" $TEMPLATES_DIR --include="*.yml" --include="*.yaml" --include="*.json" 2>/dev/null | wc -l || echo "0")
+          fi
           
           # Output to file and for use in next steps
           {
