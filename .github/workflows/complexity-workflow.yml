@@ -75,7 +75,7 @@ jobs:
             RESOURCE_PATTERN="^resource"
             MODULE_PATTERN="^module"
           else
-            FILE_PATTERN="*.{yml,yaml,json}"
+            FILE_PATTERN="templates/*.{yml,yaml,json}"
             RESOURCE_PATTERN="\"Type\":"
             MODULE_PATTERN="AWS::CloudFormation::Stack"
           fi
