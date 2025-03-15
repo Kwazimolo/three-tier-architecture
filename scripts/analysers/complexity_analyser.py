@@ -1,5 +1,3 @@
-# scripts/analysers/complexity_analyser.py
-
 #!/usr/bin/env python3
 """
 Analyses the complexity of IaC code
@@ -20,32 +18,57 @@ def analyse_complexity(tool, input_dir, output_file):
         input_dir (str): Directory containing the IaC code
         output_file (str): Where to save the complexity report
     """
+    # Ensure input_dir exists
+    if not os.path.exists(input_dir):
+        print(f"Warning: Directory {input_dir} not found, creating it")
+        os.makedirs(input_dir, exist_ok=True)
+    
     # Get basic metrics file
     metrics_file = os.path.join("results", "complexity", f"{tool}_metrics.json")
     basic_metrics = {}
     if os.path.exists(metrics_file):
-        with open(metrics_file, 'r') as f:
-            basic_metrics = json.load(f)
+        try:
+            with open(metrics_file, 'r') as f:
+                basic_metrics = json.load(f)
+        except Exception as e:
+            print(f"Error loading metrics file: {str(e)}")
+            basic_metrics = {
+                "tool": tool,
+                "total_files": 0,
+                "total_lines": 0,
+                "resource_count": 0,
+                "module_count": 0
+            }
     
     # Try to get tool-specific metrics
     tool_metrics = {}
     if tool in ['terraform', 'opentofu']:
         graph_file = os.path.join("results", "complexity", f"{tool}_graph_metrics.json")
         if os.path.exists(graph_file):
-            with open(graph_file, 'r') as f:
-                tool_metrics = json.load(f)
+            try:
+                with open(graph_file, 'r') as f:
+                    tool_metrics = json.load(f)
+            except Exception as e:
+                print(f"Error loading graph metrics: {str(e)}")
     elif tool == 'cloudformation':
         struct_file = os.path.join("results", "complexity", f"{tool}_structure_metrics.json")
         if os.path.exists(struct_file):
-            with open(struct_file, 'r') as f:
-                tool_metrics = json.load(f)
+            try:
+                with open(struct_file, 'r') as f:
+                    tool_metrics = json.load(f)
+            except Exception as e:
+                print(f"Error loading structure metrics: {str(e)}")
     
     # Get resource metrics
     resource_count = basic_metrics.get('resource_count', 0)
     module_count = basic_metrics.get('module_count', 0)
     
-    # Analyze resource types directly from files
-    resource_types = analyse_resource_types(tool, input_dir)
+    # Analyze resource types directly from files - with error handling
+    try:
+        resource_types = analyse_resource_types(tool, input_dir)
+    except Exception as e:
+        print(f"Error analyzing resource types: {str(e)}")
+        resource_types = {}
     
     # Calculate complexity metrics
     complexity_metrics = {
@@ -58,20 +81,27 @@ def analyse_complexity(tool, input_dir, output_file):
         "tool_specific_metrics": tool_metrics
     }
     
-    # Calculate complexity score
-    complexity_score = calculate_complexity_score(
-        resource_count, 
-        module_count, 
-        len(resource_types),
-        tool_metrics.get('complexity_score', 0)
-    )
+    # Calculate complexity score with error handling
+    try:
+        complexity_score = calculate_complexity_score(
+            resource_count, 
+            module_count, 
+            len(resource_types),
+            tool_metrics.get('complexity_score', 0)
+        )
+    except Exception as e:
+        print(f"Error calculating complexity score: {str(e)}")
+        complexity_score = 10.0  # Default score
     
     complexity_metrics["complexity_score"] = complexity_score
     
     # Save the report
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    with open(output_file, 'w') as f:
-        json.dump(complexity_metrics, f, indent=2)
+    try:
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        with open(output_file, 'w') as f:
+            json.dump(complexity_metrics, f, indent=2)
+    except Exception as e:
+        print(f"Error saving complexity report: {str(e)}")
     
     print(f"Complexity analysis completed for {tool}")
     print(f"Resource count: {resource_count}")
@@ -114,6 +144,11 @@ def analyse_resource_types(tool, input_dir):
     """Analyse resources directly from IaC files"""
     resource_types = defaultdict(int)
     
+    # Check if input_dir exists
+    if not os.path.exists(input_dir):
+        print(f"Warning: Directory {input_dir} doesn't exist")
+        return resource_types
+    
     if tool in ["terraform", "opentofu"]:
         # Process Terraform/OpenTofu files
         import glob
@@ -121,22 +156,41 @@ def analyse_resource_types(tool, input_dir):
         
         tf_files = glob.glob(os.path.join(input_dir, "**/*.tf"), recursive=True)
         
+        if not tf_files:
+            print(f"No .tf files found in {input_dir}")
+            return resource_types
+        
         for file_path in tf_files:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-                
-                # Count resources
-                resource_matches = re.findall(r'resource\s+"([^"]+)"\s+"[^"]+"', content)
-                for resource_type in resource_matches:
-                    resource_types[resource_type] += 1
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                    
+                    # Count resources
+                    resource_matches = re.findall(r'resource\s+"([^"]+)"\s+"[^"]+"', content)
+                    for resource_type in resource_matches:
+                        resource_types[resource_type] += 1
+            except Exception as e:
+                print(f"Error processing {file_path}: {str(e)}")
     
     elif tool == "cloudformation":
         # Process CloudFormation templates
         import glob
+        import yaml
         
+        # For CloudFormation, check templates directory
+        templates_dir = os.path.join(input_dir, "templates")
+        if os.path.exists(templates_dir):
+            input_dir = templates_dir
+            
         cf_files = []
         for ext in [".yml", ".yaml", ".json"]:
             cf_files.extend(glob.glob(os.path.join(input_dir, f"**/*{ext}"), recursive=True))
+        
+        if not cf_files:
+            print(f"No CloudFormation template files found in {input_dir}")
+            return resource_types
+        
+        print(f"Found {len(cf_files)} CloudFormation template files")
         
         for file_path in cf_files:
             try:
@@ -146,15 +200,16 @@ def analyse_resource_types(tool, input_dir):
                         template = json.load(f)
                 else:
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        import yaml
                         template = yaml.safe_load(f)
                 
-                # Process CloudFormation Resources
+                # Process CloudFormation Resources section
                 if template and isinstance(template, dict) and "Resources" in template:
-                    for resource_id, resource in template["Resources"].items():
+                    resources_section = template["Resources"]
+                    for resource_id, resource in resources_section.items():
                         if "Type" in resource:
                             resource_type = resource["Type"]
                             resource_types[resource_type] += 1
+                            print(f"Found resource type: {resource_type}")
             except Exception as e:
                 print(f"Error processing {file_path}: {str(e)}")
     

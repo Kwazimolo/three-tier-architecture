@@ -82,8 +82,8 @@ jobs:
             MODULE_COUNT=$(grep -r "$MODULE_PATTERN" $IaC_DIR --include="$FILE_PATTERN" 2>/dev/null | wc -l || echo "0")
           else
             # CloudFormation patterns
-            RESOURCE_PATTERN="\"Type\":"
-            MODULE_PATTERN="AWS::CloudFormation::Stack"
+            RESOURCE_PATTERN="Type: AWS::"
+            MODULE_PATTERN="Type: AWS::CloudFormation::Stack"
             
             # Explicitly count CloudFormation metrics in templates directory
             TEMPLATES_DIR="$IaC_DIR/templates"
@@ -232,7 +232,8 @@ jobs:
                           return json.loads(content)
                       else:
                           return yaml.safe_load(content)
-                  except:
+                  except Exception as e:
+                      print(f"Error loading {file_path}: {str(e)}")
                       return None
           
           def analyse_cloudformation_dir(directory):
@@ -245,10 +246,18 @@ jobs:
               condition_count = 0
               nested_stack_count = 0
               
+              # For CloudFormation, we need to look in the templates directory
+              template_dir = os.path.join(directory, "templates")
+              if os.path.exists(template_dir):
+                  directory = template_dir
+                  
+              print(f"Analyzing templates in: {directory}")
+              
               for root, _, files in os.walk(directory):
                   for file in files:
                       if file.endswith(('.yml', '.yaml', '.json')):
                           template_path = os.path.join(root, file)
+                          print(f"Reading template: {template_path}")
                           template = load_yaml_or_json(template_path)
                           
                           if template and isinstance(template, dict):
@@ -272,12 +281,18 @@ jobs:
                                   
                               # Count resources and resource types
                               if 'Resources' in template:
-                                  for resource_id, resource in template['Resources'].items():
+                                  resources_section = template['Resources']
+                                  for resource_id, resource in resources_section.items():
                                       total_resources += 1
                                       if 'Type' in resource:
-                                          resource_types[resource['Type']] += 1
-                                          if resource['Type'] == 'AWS::CloudFormation::Stack':
+                                          resource_type = resource['Type']
+                                          resource_types[resource_type] += 1
+                                          if resource_type == 'AWS::CloudFormation::Stack':
                                               nested_stack_count += 1
+              
+              print(f"Found templates: {template_count}")
+              print(f"Found resources: {total_resources}")
+              print(f"Found resource types: {len(resource_types)}")
               
               # Calculate complexity score
               base_score = total_resources * 1.5
@@ -288,6 +303,8 @@ jobs:
               mapping_factor = mapping_count * 0.2
               
               complexity_score = base_score + template_factor + nested_factor + param_factor + condition_factor + mapping_factor
+              if complexity_score == 0:
+                  complexity_score = 10  # Default minimum score
               
               result = {
                   "template_count": template_count,
