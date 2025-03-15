@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          ref: terraform # Branch name
         
       - name: Setup Python
         uses: actions/setup-python@v3
