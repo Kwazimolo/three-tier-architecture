@@ -34,67 +34,282 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-1
           
-      - name: Ensure results directory exists
+      - name: Install Dependencies
         run: |
-          mkdir -p results/complexity
-      
-      - name: Install Checkov
-        run: |
-          pip install checkov
-          checkov --version
-      
-      - name: Run Complexity Analysis
-        run: |
-          # Create necessary directories if they don't exist
+          # Create results directory
           mkdir -p results/complexity
           
-          # Determine which directory to analyze based on your project structure
-          if [ "${{ inputs.tool }}" == "terraform" ]; then
-            IaC_DIR="infrastructure/terraform"
-          elif [ "${{ inputs.tool }}" == "opentofu" ]; then
-            IaC_DIR="infrastructure/openTofu"
-          elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
-            IaC_DIR="infrastructure/cloudformation"
+          # Install analysis tools
+          pip install jinja2 pyyaml pytest boto3
+          
+          # Install specialized tool for Terraform/OpenTofu
+          if [[ "${{ inputs.tool }}" == "terraform" || "${{ inputs.tool }}" == "opentofu" ]]; then
+            pip install graphviz networkx
           fi
+      
+      - name: Basic Code Metrics Analysis
+        id: basic-metrics
+        run: |
+          # Determine which directory to analyze
+          IaC_DIR="infrastructure/${{ inputs.tool }}"
+          [[ "${{ inputs.tool }}" == "opentofu" ]] && IaC_DIR="infrastructure/openTofu"
           
-          # Ensure the directory exists
-          if [ ! -d "$IaC_DIR" ]; then
-            echo "Warning: Directory $IaC_DIR not found"
-            mkdir -p $IaC_DIR
-            echo "# Placeholder file" > $IaC_DIR/placeholder.tf
-          fi
+          echo "Analysing directory: $IaC_DIR"
           
-          # Run complexity analysis with Checkov
-          echo "Analyzing complexity for ${{ inputs.tool }} in $IaC_DIR..."
-          
-          # Count total lines of code, excluding comments and blank lines
-          TOTAL_LINES=$(find $IaC_DIR -type f -name "*.tf" -o -name "*.yaml" -o -name "*.yml" -o -name "*.json" | xargs cat 2>/dev/null | grep -v "^#" | grep -v "^//" | grep -v "^$" | wc -l || echo "0")
-          echo "Total lines of code: $TOTAL_LINES" > results/complexity/${{ inputs.tool }}_summary.txt
-          
-          # Count resources
-          if [ "${{ inputs.tool }}" == "terraform" ] || [ "${{ inputs.tool }}" == "opentofu" ]; then
-            RESOURCE_COUNT=$(grep -r "^resource" $IaC_DIR 2>/dev/null | wc -l || echo "0")
-            MODULE_COUNT=$(grep -r "^module" $IaC_DIR 2>/dev/null | wc -l || echo "0")
-          elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
-            RESOURCE_COUNT=$(grep -r "\"Type\":" $IaC_DIR 2>/dev/null | wc -l || echo "0")
-            MODULE_COUNT=0
-          fi
-          
-          echo "Resource count: $RESOURCE_COUNT" >> results/complexity/${{ inputs.tool }}_summary.txt
-          echo "Module count: $MODULE_COUNT" >> results/complexity/${{ inputs.tool }}_summary.txt
-          
-          # Create a fallback JSON if Checkov fails
-          echo '{"results": {"passed_checks": [], "failed_checks": []}}' > results/complexity/${{ inputs.tool }}_checkov.json
-          
-          # Run Checkov (with error handling)
-          checkov -d $IaC_DIR --output json > results/complexity/${{ inputs.tool }}_checkov.json || true
-          
-          # Check if script exists with UK spelling
-          if [ -f "scripts/analysers/complexity_analyser.py" ]; then
-            python scripts/analysers/complexity_analyser.py --tool ${{ inputs.tool }} --checkov-results results/complexity/${{ inputs.tool }}_checkov.json --output results/complexity/${{ inputs.tool }}_report.json
+          # Get file extensions based on tool
+          if [[ "${{ inputs.tool }}" == "terraform" || "${{ inputs.tool }}" == "opentofu" ]]; then
+            FILE_PATTERN="*.tf"
+            RESOURCE_PATTERN="^resource"
+            MODULE_PATTERN="^module"
           else
-            # Create a minimal report since script doesn't exist
-            echo "{\"tool\": \"${{ inputs.tool }}\", \"resource_count\": $RESOURCE_COUNT, \"module_count\": $MODULE_COUNT, \"complexity_score\": 50}" > results/complexity/${{ inputs.tool }}_report.json
+            FILE_PATTERN="*.{yml,yaml,json}"
+            RESOURCE_PATTERN="\"Type\":"
+            MODULE_PATTERN="AWS::CloudFormation::Stack"
+          fi
+          
+          # Count metrics
+          TOTAL_FILES=$(find $IaC_DIR -type f -name "$FILE_PATTERN" 2>/dev/null | wc -l || echo "0")
+          TOTAL_LINES=$(find $IaC_DIR -type f -name "$FILE_PATTERN" 2>/dev/null | xargs cat 2>/dev/null | grep -v "^#" | grep -v "^//" | grep -v "^$" | wc -l || echo "0")
+          RESOURCE_COUNT=$(grep -r "$RESOURCE_PATTERN" $IaC_DIR --include="$FILE_PATTERN" 2>/dev/null | wc -l || echo "0")
+          MODULE_COUNT=$(grep -r "$MODULE_PATTERN" $IaC_DIR --include="$FILE_PATTERN" 2>/dev/null | wc -l || echo "0")
+          
+          # Output to file and for use in next steps
+          {
+            echo "total_files=$TOTAL_FILES"
+            echo "total_lines=$TOTAL_LINES"
+            echo "resource_count=$RESOURCE_COUNT" 
+            echo "module_count=$MODULE_COUNT"
+          } | tee results/complexity/${tool}_metrics.txt
+          
+          # Create JSON metrics file
+          cat > results/complexity/${tool}_metrics.json << EOF
+          {
+            "tool": "${{ inputs.tool }}",
+            "total_files": $TOTAL_FILES,
+            "total_lines": $TOTAL_LINES,
+            "resource_count": $RESOURCE_COUNT,
+            "module_count": $MODULE_COUNT
+          }
+          EOF
+          
+          echo "resource_count=$RESOURCE_COUNT" >> $GITHUB_OUTPUT
+          echo "module_count=$MODULE_COUNT" >> $GITHUB_OUTPUT
+          
+      # We've removed the Checkov analysis step as it's more appropriate for the security section
+      
+      - name: Run Tool-Specific Analysis
+        id: tool-analysis
+        run: |
+          IaC_DIR="infrastructure/${{ inputs.tool }}"
+          [[ "${{ inputs.tool }}" == "opentofu" ]] && IaC_DIR="infrastructure/openTofu"
+          
+          complexity_score=0
+          
+          # Terraform/OpenTofu: Use terraform-graph for dependency analysis
+          if [[ "${{ inputs.tool }}" == "terraform" || "${{ inputs.tool }}" == "opentofu" ]]; then
+            # Create Python script for graph analysis
+            cat > analyse_graph.py << EOF
+          import sys
+          import networkx as nx
+          
+          def analyse_graph(dot_file):
+              G = nx.DiGraph()
+              
+              with open(dot_file, 'r') as f:
+                  for line in f:
+                      if '->' in line:
+                          parts = line.strip().split('->')
+                          if len(parts) == 2:
+                              source = parts[0].strip().strip('"')
+                              target = parts[1].strip().strip('"').split('[')[0].strip()
+                              G.add_edge(source, target)
+              
+              # Calculate metrics
+              node_count = G.number_of_nodes()
+              edge_count = G.number_of_edges()
+              
+              try:
+                  avg_degree = sum(dict(G.degree()).values()) / node_count
+              except ZeroDivisionError:
+                  avg_degree = 0
+                  
+              # Calculate complexity score based on graph properties
+              complexity = (node_count * 0.4) + (edge_count * 0.6) + (avg_degree * 5)
+              
+              return {
+                  "nodes": node_count,
+                  "edges": edge_count,
+                  "avg_degree": round(avg_degree, 2),
+                  "complexity_score": round(complexity, 2)
+              }
+          
+          if __name__ == "__main__":
+              if len(sys.argv) < 2:
+                  print("Usage: python analyse_graph.py graph.dot")
+                  sys.exit(1)
+                  
+              result = analyse_graph(sys.argv[1])
+              print(f"Nodes: {result['nodes']}")
+              print(f"Edges: {result['edges']}")
+              print(f"Avg Degree: {result['avg_degree']}")
+              print(f"Complexity Score: {result['complexity_score']}")
+              
+              import json
+              with open('graph_metrics.json', 'w') as f:
+                  json.dump(result, f, indent=2)
+          EOF
+            
+            # Run appropriate command based on tool
+            cd $IaC_DIR
+            if [[ "${{ inputs.tool }}" == "terraform" ]]; then
+              terraform init -backend=false
+              terraform graph > graph.dot
+            else
+              tofu init -backend=false
+              tofu graph > graph.dot
+            fi
+            
+            # Analyse the graph
+            python ../../analyse_graph.py graph.dot
+            mv graph_metrics.json ../../results/complexity/${tool}_graph_metrics.json
+            complexity_score=$(jq '.complexity_score' ../../results/complexity/${tool}_graph_metrics.json)
+            cd ../..
+            
+          # CloudFormation: Analyse template structure complexity
+          elif [[ "${{ inputs.tool }}" == "cloudformation" ]]; then
+            # Create Python script for analysing CloudFormation templates
+            cat > analyse_cfn.py << EOF
+          import json
+          import yaml
+          import os
+          import sys
+          from collections import defaultdict
+          
+          def load_yaml_or_json(file_path):
+              with open(file_path, 'r') as f:
+                  content = f.read()
+                  try:
+                      if file_path.endswith('.json'):
+                          return json.loads(content)
+                      else:
+                          return yaml.safe_load(content)
+                  except:
+                      return None
+          
+          def analyse_cloudformation_dir(directory):
+              resource_types = defaultdict(int)
+              total_resources = 0
+              template_count = 0
+              parameter_count = 0
+              output_count = 0
+              mapping_count = 0
+              condition_count = 0
+              nested_stack_count = 0
+              
+              for root, _, files in os.walk(directory):
+                  for file in files:
+                      if file.endswith(('.yml', '.yaml', '.json')):
+                          template_path = os.path.join(root, file)
+                          template = load_yaml_or_json(template_path)
+                          
+                          if template and isinstance(template, dict):
+                              template_count += 1
+                              
+                              # Count parameters
+                              if 'Parameters' in template:
+                                  parameter_count += len(template['Parameters'])
+                                  
+                              # Count outputs
+                              if 'Outputs' in template:
+                                  output_count += len(template['Outputs'])
+                                  
+                              # Count mappings
+                              if 'Mappings' in template:
+                                  mapping_count += len(template['Mappings'])
+                                  
+                              # Count conditions
+                              if 'Conditions' in template:
+                                  condition_count += len(template['Conditions'])
+                                  
+                              # Count resources and resource types
+                              if 'Resources' in template:
+                                  for resource_id, resource in template['Resources'].items():
+                                      total_resources += 1
+                                      if 'Type' in resource:
+                                          resource_types[resource['Type']] += 1
+                                          if resource['Type'] == 'AWS::CloudFormation::Stack':
+                                              nested_stack_count += 1
+              
+              # Calculate complexity score
+              base_score = total_resources * 1.5
+              template_factor = template_count * 0.3
+              nested_factor = nested_stack_count * 2
+              param_factor = parameter_count * 0.1
+              condition_factor = condition_count * 0.5
+              mapping_factor = mapping_count * 0.2
+              
+              complexity_score = base_score + template_factor + nested_factor + param_factor + condition_factor + mapping_factor
+              
+              result = {
+                  "template_count": template_count,
+                  "total_resources": total_resources,
+                  "unique_resource_types": len(resource_types),
+                  "parameter_count": parameter_count,
+                  "output_count": output_count,
+                  "mapping_count": mapping_count,
+                  "condition_count": condition_count,
+                  "nested_stack_count": nested_stack_count,
+                  "resource_types": dict(resource_types),
+                  "complexity_score": round(complexity_score, 2)
+              }
+              
+              return result
+          
+          if __name__ == "__main__":
+              if len(sys.argv) < 2:
+                  print("Usage: python analyse_cfn.py <directory>")
+                  sys.exit(1)
+                  
+              result = analyse_cloudformation_dir(sys.argv[1])
+              
+              print(f"Templates: {result['template_count']}")
+              print(f"Resources: {result['total_resources']}")
+              print(f"Resource Types: {result['unique_resource_types']}")
+              print(f"Parameters: {result['parameter_count']}")
+              print(f"Nested Stacks: {result['nested_stack_count']}")
+              print(f"Complexity Score: {result['complexity_score']}")
+              
+              with open('cfn_metrics.json', 'w') as f:
+                  json.dump(result, f, indent=2)
+          EOF
+            
+            # Run the analysis
+            python analyse_cfn.py $IaC_DIR
+            mv cfn_metrics.json results/complexity/${tool}_structure_metrics.json
+            complexity_score=$(jq '.complexity_score' results/complexity/${tool}_structure_metrics.json)
+          fi
+          
+          echo "complexity_score=$complexity_score" >> $GITHUB_OUTPUT
+      
+      - name: Generate Final Complexity Report
+        run: |
+          cat > results/complexity/${tool}_report.json << EOF
+          {
+            "tool": "${{ inputs.tool }}",
+            "basic_metrics": {
+              "total_files": $(cat results/complexity/${tool}_metrics.json | jq '.total_files'),
+              "total_lines": $(cat results/complexity/${tool}_metrics.json | jq '.total_lines'),
+              "resource_count": ${{ steps.basic-metrics.outputs.resource_count }},
+              "module_count": ${{ steps.basic-metrics.outputs.module_count }}
+            },
+            "complexity_score": ${{ steps.tool-analysis.outputs.complexity_score }},
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+          
+          # Run the complexity analyser script if it exists
+          if [ -f "scripts/analysers/complexity_analyser.py" ]; then
+            python scripts/analysers/complexity_analyser.py --tool ${{ inputs.tool }} --input-dir infrastructure/${{ inputs.tool == 'opentofu' && 'openTofu' || inputs.tool }} --output results/complexity/${tool}_final_report.json
           fi
       
       - name: Upload Complexity Analysis Results

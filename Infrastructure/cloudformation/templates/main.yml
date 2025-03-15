@@ -58,6 +58,8 @@ Resources:
     DependsOn:
       - NetworkingStack
       - SecurityStack
+      - ComputeStack
+      - LoadBalancingStack
     Properties:
       TemplateURL: !Sub 'https://s3.eu-west-1.amazonaws.com/${CloudFormationBucket}/cloudformation/database.yml'
       TimeoutInMinutes: 30
@@ -83,4 +85,4 @@ Outputs:
 
   DatabaseEndpoint:
     Description: Primary database endpoint
-    Value: !GetAtt DatabaseStack.Outputs.PrimaryDBEndpoint
+    Value: !GetAtt DatabaseStack.Outputs.DBEndpoint

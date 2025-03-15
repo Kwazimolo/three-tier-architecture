@@ -13,35 +13,48 @@ TEMPLATE_DIR="templates"
 MAIN_TEMPLATE="main.yml"  # Note: .yml extension, not .yaml
 PARAMETERS_FILE="parameters.json"
 
+# Function to upload all templates directly to S3
+function upload_templates() {
+  echo "Uploading templates to S3..."
+  
+  # Upload main template
+  aws s3 cp $TEMPLATE_DIR/$MAIN_TEMPLATE s3://$S3_BUCKET/$S3_PREFIX/$MAIN_TEMPLATE
+  
+  # Upload all other templates
+  for template in $TEMPLATE_DIR/*.yml; do
+    filename=$(basename $template)
+    if [ "$filename" != "$MAIN_TEMPLATE" ]; then
+      echo "Uploading $filename to S3..."
+      aws s3 cp $template s3://$S3_BUCKET/$S3_PREFIX/$filename
+    fi
+  done
+  
+  echo "All templates uploaded to S3."
+}
+
 # Function to deploy the stack
 function deploy_stack() {
   # Print start message
   echo "Starting deployment of $STACK_NAME in $REGION"
 
-# Validate templates
-echo "Validating CloudFormation templates..."
-for template in $TEMPLATE_DIR/*.yml; do
-  echo "Validating $template..."
-  # Disable the AWS_PAGER to prevent opening in a pager/editor
-  export AWS_PAGER=""
-  aws cloudformation validate-template --template-body file://$template --region $REGION
-done
+  # Validate templates
+  echo "Validating CloudFormation templates..."
+  for template in $TEMPLATE_DIR/*.yml; do
+    echo "Validating $template..."
+    # Disable the AWS_PAGER to prevent opening in a pager/editor
+    export AWS_PAGER=""
+    aws cloudformation validate-template --template-body file://$template --region $REGION
+  done
 
-  # Package the templates (uploads templates to S3 and creates new template with S3 references)
-  echo "Packaging templates..."
-  aws cloudformation package \
-    --template-file $TEMPLATE_DIR/$MAIN_TEMPLATE \
-    --s3-bucket $S3_BUCKET \
-    --s3-prefix $S3_PREFIX \
-    --output-template-file $PACKAGED_TEMPLATE \
-    --region $REGION
+  # Upload all templates to S3
+  upload_templates
 
   # Check if stack exists
   if aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION 2>/dev/null; then
     # Update existing stack
     echo "Updating existing stack $STACK_NAME..."
     aws cloudformation deploy \
-      --template-file $PACKAGED_TEMPLATE \
+      --template-file $TEMPLATE_DIR/$MAIN_TEMPLATE \
       --stack-name $STACK_NAME \
       --parameter-overrides file://$PARAMETERS_FILE \
       --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
@@ -51,7 +64,7 @@ done
     # Create new stack
     echo "Creating new stack $STACK_NAME..."
     aws cloudformation deploy \
-      --template-file $PACKAGED_TEMPLATE \
+      --template-file $TEMPLATE_DIR/$MAIN_TEMPLATE \
       --stack-name $STACK_NAME \
       --parameter-overrides file://$PARAMETERS_FILE \
       --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \

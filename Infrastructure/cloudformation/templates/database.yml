@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: '3-Tier Architecture Infrastructure - Database Stack'
+Description: '3-Tier Architecture Infrastructure - Database Stack (Simplified)'
 
 Parameters:
   DbSecurityGroupId:
@@ -32,19 +32,24 @@ Parameters:
   DbName:
     Description: Database name
     Type: String
-    Default: CF-data_tier_db
+    Default: cfdb
 
   DbAdminUsername:
     Description: Database admin username
     Type: String
     Default: admin
 
+  DbAdminPassword:
+    Description: Database admin password
+    Type: String
+    Default: Password123
+    NoEcho: true
+
 Resources:
   # DB Subnet Group
   DatabaseSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupName: data-tier-subnet-group
       DBSubnetGroupDescription: Data Tier DB Subnet Group
       SubnetIds:
         - !Ref PrivateDbSubnet1Id
@@ -54,101 +59,44 @@ Resources:
           Value: CF-Data Tier DB Subnet Group
         - Key: Environment
           Value: Production
-        - Key: Tier
-          Value: Data
-        - Key: ManagedBy
-          Value: CloudFormation
-        - Key: Role
-          Value: DatabaseSubnetGroup
-
-  # Master Secret for Database
-  DatabaseMasterSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub ${AWS::StackName}-DatabaseMasterSecret
-      Description: Credentials for the database admin user
-      GenerateSecretString:
-        SecretStringTemplate: !Sub '{"username": "${DbAdminUsername}"}'
-        GenerateStringKey: password
-        PasswordLength: 16
-        ExcludeCharacters: '"@/\'
 
   # Primary RDS Instance
   PrimaryDBInstance:
     Type: AWS::RDS::DBInstance
     Properties:
-      DBInstanceIdentifier: data-tier-db-1
-      AllocatedStorage: 10
+      AllocatedStorage: 20
       DBName: !Ref DbName
       Engine: !Ref DbEngine
       EngineVersion: !Ref DbEngineVersion
       DBInstanceClass: !Ref DbInstanceClass
       MasterUsername: !Ref DbAdminUsername
-      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DatabaseMasterSecret}:SecretString:password}}'
+      MasterUserPassword: !Ref DbAdminPassword
       DBSubnetGroupName: !Ref DatabaseSubnetGroup
       VPCSecurityGroups: 
         - !Ref DbSecurityGroupId
       MultiAZ: false
       PubliclyAccessible: false
-      AvailabilityZone: eu-west-1a
+      StorageType: gp2
+      StorageEncrypted: true
+      BackupRetentionPeriod: 7
       Tags:
         - Key: Name
-          Value: CF-Data-Tier-DB-1
+          Value: CF-Data-Tier-DB
         - Key: Environment
           Value: Production
-        - Key: Tier
-          Value: Data
-        - Key: ManagedBy
-          Value: CloudFormation
-        - Key: Role
-          Value: MySQL-Database
-        - Key: Replica
-          Value: Primary
-
-  # Secondary RDS Instance
-  SecondaryDBInstance:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      DBInstanceIdentifier: data-tier-db-2
-      AllocatedStorage: 10
-      DBName: !Ref DbName
-      Engine: !Ref DbEngine
-      EngineVersion: !Ref DbEngineVersion
-      DBInstanceClass: !Ref DbInstanceClass
-      MasterUsername: !Ref DbAdminUsername
-      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DatabaseMasterSecret}:SecretString:password}}'
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
-      VPCSecurityGroups: 
-        - !Ref DbSecurityGroupId
-      MultiAZ: false
-      PubliclyAccessible: false
-      AvailabilityZone: eu-west-1b
-      Tags:
-        - Key: Name
-          Value: CF-Data-Tier-DB-2
-        - Key: Environment
-          Value: Production
-        - Key: Tier
-          Value: Data
-        - Key: ManagedBy
-          Value: CloudFormation
-        - Key: Role
-          Value: MySQL-Database
-        - Key: Replica
-          Value: Secondary
 
 Outputs:
-  PrimaryDBEndpoint:
-    Description: Connection endpoint for the primary database
+  DBEndpoint:
+    Description: Connection endpoint for the database
     Value: !GetAtt PrimaryDBInstance.Endpoint.Address
     Export:
-      Name: !Sub "${AWS::StackName}-PrimaryDBEndpoint"
+      Name: !Sub "${AWS::StackName}-DBEndpoint"
 
-  SecondaryDBEndpoint:
-    Description: Connection endpoint for the secondary database
-    Value: !GetAtt SecondaryDBInstance.Endpoint.Address
+  DBPort:
+    Description: Database port
+    Value: !GetAtt PrimaryDBInstance.Endpoint.Port
     Export:
-      Name: !Sub "${AWS::StackName}-SecondaryDBEndpoint"
+      Name: !Sub "${AWS::StackName}-DBPort"
 
   DatabaseName:
     Description: Database name

@@ -41,10 +41,24 @@ Parameters:
     Type: String
     Default: ami-0fed63ea358539e44
 
+  SSHPublicKey:
+    Description: The SSH public key content
+    Type: String
+    Default: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDeVGiH7I+x4vCfR3e7E0havpo/dr2LqO4AmvIrSX4BqKSwZrVbVVA7GF18pPFURaIX3rj6ZI7iWXD2hIVjSHbu55oBou0QrPmc/4CNhO3+3vlOWtcpsfxlLOlDW5tsvRAPHJA5IXdXkPwGYyndXiWVuQsB7gicC+1WIddvXKHMWMyhxuxuFx+/vGRzvZz0R4h9Dq7s+oRO7fjCwefnOMj7yCZUSaKUUZxH9ZlIxuLuxgcBq7scd1N0yAL/Sj0AOOGLEYkln+0cN4d88lFuN6XmBrOt5DWKoqNGuNGLYqWk4EpY4EMZZQ3RbxTAmfLQ83D92/yKgHWI1VMwAP3SK2J1"
+
 Resources:
+
+  # Create the Key Pair
+  DissertationKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Ref KeyName
+      PublicKeyMaterial: !Ref SSHPublicKey
+
   # Application Server Instances
   ApplicationInstance1:
     Type: AWS::EC2::Instance
+    DependsOn: DissertationKeyPair
     Properties:
       ImageId: !Ref AmiId
       InstanceType: !Ref InstanceType
@@ -54,33 +68,32 @@ Resources:
         - !Ref AppSecurityGroupId
       UserData:
         Fn::Base64: !Sub |
-          #!/bin/bash
-          # Log output for debugging
-          exec > /var/log/user-data.log 2>&1
-          set -x
-
-          # Update packages
-          sudo yum update -y
-
-          # Install necessary packages
-          sudo amazon-linux-extras enable php7.2
-          sudo yum install -y httpd mariadb-server php-mbstring php-xml
-
+          #!/bin/bash -xe
+          # Log output for better debugging
+          exec > >(tee /var/log/user-data.log) 2>&1
+          echo "Starting user data execution at $(date)"
+          
+          # Update and install packages
+          yum update -y
+          yum install -y httpd mariadb-server php-mbstring php-xml
+          
+          # Create index.html
+          echo '<h1>Hello world from a highly available group of EC2 instances</h1>' > /var/www/html/index.html
+          echo '<p>This is instance running in an availability zone.</p>' >> /var/www/html/index.html
+          
+          # Configure permissions
+          usermod -a -G apache ec2-user
+          chown -R ec2-user:apache /var/www
+          chmod 2775 /var/www
+          find /var/www -type d -exec chmod 2775 {} \;
+          find /var/www -type f -exec chmod 0664 {} \;
+          
           # Start and enable Apache
-          sudo systemctl start httpd
-          sudo systemctl enable httpd
-
-          # Set permissions for Apache
-          sudo usermod -a -G apache ec2-user
-          sudo chown -R ec2-user:apache /var/www
-          sudo chmod 2775 /var/www && find /var/www -type d -exec sudo chmod 2775 {} \;
-          find /var/www -type f -exec sudo chmod 0664 {} \;
-
-          # Create the index.html file
-          echo '<h1>Hello world from a highly available group of EC2 instances</h1>' | sudo tee /var/www/html/index.html
-
-          # Restart Apache to apply changes
-          sudo systemctl restart httpd
+          systemctl start httpd
+          systemctl enable httpd
+          
+          # Log completion
+          echo "User data execution completed at $(date)"
       Tags:
         - Key: Name
           Value: CF-application-server-1
@@ -101,6 +114,7 @@ Resources:
 
   ApplicationInstance2:
     Type: AWS::EC2::Instance
+    DependsOn: DissertationKeyPair
     Properties:
       ImageId: !Ref AmiId
       InstanceType: !Ref InstanceType
@@ -110,33 +124,32 @@ Resources:
         - !Ref AppSecurityGroupId
       UserData:
         Fn::Base64: !Sub |
-          #!/bin/bash
-          # Log output for debugging
-          exec > /var/log/user-data.log 2>&1
-          set -x
-
-          # Update packages
-          sudo yum update -y
-
-          # Install necessary packages
-          sudo amazon-linux-extras enable php7.2
-          sudo yum install -y httpd mariadb-server php-mbstring php-xml
-
+          #!/bin/bash -xe
+          # Log output for better debugging
+          exec > >(tee /var/log/user-data.log) 2>&1
+          echo "Starting user data execution at $(date)"
+          
+          # Update and install packages
+          yum update -y
+          yum install -y httpd mariadb-server php-mbstring php-xml
+          
+          # Create index.html
+          echo '<h1>Hello world from a highly available group of EC2 instances</h1>' > /var/www/html/index.html
+          echo '<p>This is instance running in an availability zone.</p>' >> /var/www/html/index.html
+          
+          # Configure permissions
+          usermod -a -G apache ec2-user
+          chown -R ec2-user:apache /var/www
+          chmod 2775 /var/www
+          find /var/www -type d -exec chmod 2775 {} \;
+          find /var/www -type f -exec chmod 0664 {} \;
+          
           # Start and enable Apache
-          sudo systemctl start httpd
-          sudo systemctl enable httpd
-
-          # Set permissions for Apache
-          sudo usermod -a -G apache ec2-user
-          sudo chown -R ec2-user:apache /var/www
-          sudo chmod 2775 /var/www && find /var/www -type d -exec sudo chmod 2775 {} \;
-          find /var/www -type f -exec sudo chmod 0664 {} \;
-
-          # Create the index.html file
-          echo '<h1>Hello world from a highly available group of EC2 instances</h1>' | sudo tee /var/www/html/index.html
-
-          # Restart Apache to apply changes
-          sudo systemctl restart httpd
+          systemctl start httpd
+          systemctl enable httpd
+          
+          # Log completion
+          echo "User data execution completed at $(date)"
       Tags:
         - Key: Name
           Value: CF-application-server-2
@@ -158,6 +171,7 @@ Resources:
   # Bastion Host
   BastionHost:
     Type: AWS::EC2::Instance
+    DependsOn: DissertationKeyPair
     Properties:
       ImageId: !Ref AmiId
       InstanceType: !Ref InstanceType
@@ -187,6 +201,12 @@ Resources:
           Value: Infrastructure
 
 Outputs:
+  KeyPairName:
+    Description: Name of the created key pair
+    Value: !Ref DissertationKeyPair
+    Export:
+      Name: !Sub "${AWS::StackName}-KeyPairName"
+
   AppInstance1Id:
     Description: ID of the first application instance
     Value: !Ref ApplicationInstance1
