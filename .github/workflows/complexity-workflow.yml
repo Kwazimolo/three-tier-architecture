@@ -75,7 +75,7 @@ jobs:
             RESOURCE_PATTERN="^resource"
             MODULE_PATTERN="^module"
           else
-            FILE_PATTERN="templates/*.{yml,yaml,json}"
+            FILE_PATTERN="/templates/*.{yml,yaml,json}"
             RESOURCE_PATTERN="\"Type\":"
             MODULE_PATTERN="AWS::CloudFormation::Stack"
           fi
@@ -173,11 +173,32 @@ jobs:
             # Run appropriate command based on tool
             cd $IaC_DIR
             if [[ "${{ inputs.tool }}" == "terraform" ]]; then
-              terraform init -backend=false
+              # Temporarily move backend config to avoid initialization issues
+              if [ -f "backend.tf" ]; then
+                mv backend.tf backend.tf.bak
+              fi
+              
+              terraform init
               terraform graph > graph.dot
+              
+              # Restore original backend config
+              if [ -f "backend.tf.bak" ]; then
+                mv backend.tf.bak backend.tf
+              fi
             else
-              tofu init -backend=false
+              # For OpenTofu
+              # Temporarily move backend config to avoid initialization issues
+              if [ -f "backend.tf" ]; then
+                mv backend.tf backend.tf.bak
+              fi
+              
+              tofu init
               tofu graph > graph.dot
+              
+              # Restore original backend config
+              if [ -f "backend.tf.bak" ]; then
+                mv backend.tf.bak backend.tf
+              fi
             fi
             
             # Analyse the graph
