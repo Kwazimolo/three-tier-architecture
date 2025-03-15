@@ -358,7 +358,7 @@ jobs:
               "resource_count": $(cat results/complexity/${tool}_metrics.json | jq '.resource_count'),
               "module_count": $(cat results/complexity/${tool}_metrics.json | jq '.module_count')
             },
-            "complexity_score": ${{ steps.tool-analysis.outputs.complexity_score }},
+            "complexity_score": ${{ steps.tool-analysis.outputs.complexity_score || 10 }},
             "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" 
           }
           EOF

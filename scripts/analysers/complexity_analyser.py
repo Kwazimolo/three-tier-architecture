@@ -30,6 +30,7 @@ def analyse_complexity(tool, input_dir, output_file):
         try:
             with open(metrics_file, 'r') as f:
                 basic_metrics = json.load(f)
+                print(f"Loaded basic metrics: {basic_metrics}")
         except Exception as e:
             print(f"Error loading metrics file: {str(e)}")
             basic_metrics = {
