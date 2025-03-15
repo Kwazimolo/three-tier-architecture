@@ -94,9 +94,7 @@ jobs:
           
           echo "resource_count=$RESOURCE_COUNT" >> $GITHUB_OUTPUT
           echo "module_count=$MODULE_COUNT" >> $GITHUB_OUTPUT
-          
-      # We've removed the Checkov analysis step as it's more appropriate for the security section
-      
+                
       - name: Run Tool-Specific Analysis
         id: tool-analysis
         run: |
