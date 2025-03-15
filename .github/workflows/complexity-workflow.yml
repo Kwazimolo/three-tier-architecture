@@ -50,9 +50,8 @@ jobs:
       - name: Basic Code Metrics Analysis
         id: basic-metrics
         run: |
-          # Determine which directory to analyze
+          # Determine which directory to analyze (all lowercase)
           IaC_DIR="infrastructure/${{ inputs.tool }}"
-          [[ "${{ inputs.tool }}" == "opentofu" ]] && IaC_DIR="infrastructure/openTofu"
           
           echo "Analysing directory: $IaC_DIR"
           
@@ -98,8 +97,8 @@ jobs:
       - name: Run Tool-Specific Analysis
         id: tool-analysis
         run: |
+          # Determine which directory to analyze (all lowercase)
           IaC_DIR="infrastructure/${{ inputs.tool }}"
-          [[ "${{ inputs.tool }}" == "opentofu" ]] && IaC_DIR="infrastructure/openTofu"
           
           complexity_score=0
           
@@ -307,7 +306,7 @@ jobs:
           
           # Run the complexity analyser script if it exists
           if [ -f "scripts/analysers/complexity_analyser.py" ]; then
-            python scripts/analysers/complexity_analyser.py --tool ${{ inputs.tool }} --input-dir infrastructure/${{ inputs.tool == 'opentofu' && 'openTofu' || inputs.tool }} --output results/complexity/${tool}_final_report.json
+            python scripts/analysers/complexity_analyser.py --tool ${{ inputs.tool }} --input-dir infrastructure/${{ inputs.tool }} --output results/complexity/${tool}_final_report.json
           fi
       
       - name: Upload Complexity Analysis Results
