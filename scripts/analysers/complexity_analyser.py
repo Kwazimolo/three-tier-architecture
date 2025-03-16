@@ -41,38 +41,43 @@ def analyse_complexity(tool, input_dir, output_file):
     """
     # Prepare paths for metrics files
     metrics_dir = os.path.join("results", "complexity")
-    basic_metrics_file = os.path.join(metrics_dir, f"{tool}_metrics.json")
+    tool_specific_metrics_file = os.path.join(metrics_dir, f"{tool}_tool_metrics.json")
     graph_metrics_file = os.path.join(metrics_dir, f"{tool}_graph_metrics.json")
     
-    # Load metrics files
-    basic_metrics = load_json_file(basic_metrics_file, {
-        "tool": tool,
-        "total_files": 0,
-        "total_lines": 0,
-        "resource_count": 0,
-        "module_count": 0
-    })
+    # Load tool-specific metrics
+    tool_specific_metrics = load_json_file(tool_specific_metrics_file, {})
     
-    graph_metrics = load_json_file(graph_metrics_file, {
-        "nodes": 0,
-        "edges": 0,
-        "avg_degree": 0,
-        "complexity_score": 10.0
-    })
+    # Load graph metrics
+    graph_metrics = load_json_file(graph_metrics_file, {})
     
-    # Analyze resource types
+    # Prioritise metrics from tool-specific analysis
+    resource_count = (
+        tool_specific_metrics.get('resources', 0) or 
+        tool_specific_metrics.get('resource_count', 0) or 
+        graph_metrics.get('nodes', 0)
+    )
+    
+    # Analyse resource types
     try:
         resource_types = analyse_resource_types(tool, input_dir)
     except Exception as e:
         print(f"Error analyzing resource types: {str(e)}")
         resource_types = {}
     
-    # Extract key metrics
-    resource_count = basic_metrics.get('resource_count', graph_metrics.get('nodes', 0))
-    module_count = basic_metrics.get('module_count', 0)
-    graph_complexity_score = graph_metrics.get('complexity_score', 10.0)
+    # Calculate module count (might need adjustment based on your specific requirements)
+    module_count = (
+        tool_specific_metrics.get('nested_stacks', 0) or 
+        tool_specific_metrics.get('module_count', 0) or 
+        len([k for k in resource_types.keys() if 'module' in k.lower()])
+    )
     
-    # Calculate complexity metrics
+    # Prioritise graph complexity score
+    graph_complexity_score = (
+        tool_specific_metrics.get('complexity_score', 0) or 
+        graph_metrics.get('complexity_score', 10.0)
+    )
+    
+    # Prepare complexity metrics
     complexity_metrics = {
         "tool": tool,
         "resource_count": resource_count,
@@ -81,7 +86,8 @@ def analyse_complexity(tool, input_dir, output_file):
         "resource_type_count": len(resource_types),
         "graph_nodes": graph_metrics.get('nodes', 0),
         "graph_edges": graph_metrics.get('edges', 0),
-        "graph_avg_degree": graph_metrics.get('avg_degree', 0)
+        "graph_avg_degree": graph_metrics.get('avg_degree', 0),
+        "tool_specific_metrics": tool_specific_metrics
     }
     
     # Calculate complexity score
