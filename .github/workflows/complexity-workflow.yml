@@ -1,3 +1,379 @@
+# # .github/workflows/complexity-workflow.yml
+
+# name: Code Complexity Analysis
+
+# on:
+#   workflow_call:
+#     inputs:
+#       tool:
+#         required: true
+#         type: string
+#         description: 'The IaC tool to analyse (terraform, cloudformation, opentofu)'
+#     secrets:
+#       AWS_ACCESS_KEY_ID:
+#         required: true
+#       AWS_SECRET_ACCESS_KEY:
+#         required: true
+
+# jobs:
+#   analyse-complexity:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+#         with:
+#           ref: terraform # Branch name
+        
+#       - name: Setup Python
+#         uses: actions/setup-python@v3
+#         with:
+#           python-version: '3.10'
+          
+#       - name: Setup AWS Credentials
+#         uses: aws-actions/configure-aws-credentials@v2
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: eu-west-1
+
+#       - name: Install Terraform
+#         uses: hashicorp/setup-terraform@v2
+#         with:
+#           terraform_version: '1.9.0'
+    
+#       - name: Install OpenTofu
+#         run: |
+#           curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh
+#           chmod +x install-opentofu.sh
+#           ./install-opentofu.sh --install-method standalone
+#           tofu --version
+          
+#       - name: Install Dependencies
+#         run: |
+#           # Create results directory
+#           mkdir -p results/complexity
+          
+#           # Install analysis tools
+#           pip install jinja2 pyyaml pytest boto3
+          
+#           # Install specialized tool for Terraform/OpenTofu
+#           if [[ "${{ inputs.tool }}" == "terraform" || "${{ inputs.tool }}" == "opentofu" ]]; then
+#             pip install graphviz networkx
+#           fi
+      
+#       - name: Basic Code Metrics Analysis
+#         id: basic-metrics
+#         run: |
+#           # Determine which directory to analyze (all lowercase)
+#           IaC_DIR="infrastructure/${{ inputs.tool }}"
+          
+#           echo "Analysing directory: $IaC_DIR"
+          
+#           # Get file extensions based on tool
+#           if [[ "${{ inputs.tool }}" == "terraform" || "${{ inputs.tool }}" == "opentofu" ]]; then
+#             FILE_PATTERN="*.tf"
+#             RESOURCE_PATTERN="^resource"
+#             MODULE_PATTERN="^module"
+            
+#             # Count metrics for Terraform/OpenTofu
+#             TOTAL_FILES=$(find $IaC_DIR -type f -name "$FILE_PATTERN" 2>/dev/null | wc -l || echo "0")
+#             TOTAL_LINES=$(find $IaC_DIR -type f -name "$FILE_PATTERN" 2>/dev/null | xargs cat 2>/dev/null | grep -v "^#" | grep -v "^//" | grep -v "^$" | wc -l || echo "0")
+#             RESOURCE_COUNT=$(grep -r "$RESOURCE_PATTERN" $IaC_DIR --include="$FILE_PATTERN" 2>/dev/null | wc -l || echo "0")
+#             MODULE_COUNT=$(grep -r "$MODULE_PATTERN" $IaC_DIR --include="$FILE_PATTERN" 2>/dev/null | wc -l || echo "0")
+#           else
+#             # CloudFormation patterns
+#             CF_RESOURCE_PATTERN="Type: AWS::"
+#             CF_MODULE_PATTERN="Type: AWS::CloudFormation::Stack"
+            
+#             # Explicitly count CloudFormation metrics in templates directory
+#             TEMPLATES_DIR="$IaC_DIR/templates"
+#             TOTAL_FILES=$(find $TEMPLATES_DIR -type f \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" \) 2>/dev/null | wc -l || echo "0")
+#             TOTAL_LINES=$(find $TEMPLATES_DIR -type f \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" \) 2>/dev/null | xargs cat 2>/dev/null | grep -v "^#" | grep -v "^//" | grep -v "^$" | wc -l || echo "0")
+#             RESOURCE_COUNT=$(grep -r "$CF_RESOURCE_PATTERN" $TEMPLATES_DIR --include="*.yml" --include="*.yaml" --include="*.json" 2>/dev/null | wc -l || echo "0")
+#             MODULE_COUNT=$(grep -r "$CF_MODULE_PATTERN" $TEMPLATES_DIR --include="*.yml" --include="*.yaml" --include="*.json" 2>/dev/null | wc -l || echo "0")
+#           fi
+          
+#           # Output to file and for use in next steps
+#           {
+#             echo "total_files=$TOTAL_FILES"
+#             echo "total_lines=$TOTAL_LINES"
+#             echo "resource_count=$RESOURCE_COUNT" 
+#             echo "module_count=$MODULE_COUNT"
+#           } | tee results/complexity/${tool}_metrics.txt
+          
+#           # Create JSON metrics file
+#           cat > results/complexity/${tool}_metrics.json << EOF
+#           {
+#             "tool": "${{ inputs.tool }}",
+#             "total_files": $TOTAL_FILES,
+#             "total_lines": $TOTAL_LINES,
+#             "resource_count": $RESOURCE_COUNT,
+#             "module_count": $MODULE_COUNT
+#           }
+#           EOF
+          
+#           echo "resource_count=$RESOURCE_COUNT" >> $GITHUB_OUTPUT
+#           echo "module_count=$MODULE_COUNT" >> $GITHUB_OUTPUT
+                
+#       - name: Run Tool-Specific Analysis
+#         id: tool-analysis
+#         run: |
+#           # Determine which directory to analyze (all lowercase)
+#           IaC_DIR="infrastructure/${{ inputs.tool }}"
+          
+#           complexity_score=0
+          
+#           # Terraform/OpenTofu: Use terraform-graph for dependency analysis
+#           if [[ "${{ inputs.tool }}" == "terraform" || "${{ inputs.tool }}" == "opentofu" ]]; then
+#             # Create Python script for graph analysis
+#             cat > analyse_graph.py << EOF
+#           import sys
+#           import networkx as nx
+          
+#           def analyse_graph(dot_file):
+#               G = nx.DiGraph()
+              
+#               with open(dot_file, 'r') as f:
+#                   for line in f:
+#                       if '->' in line:
+#                           parts = line.strip().split('->')
+#                           if len(parts) == 2:
+#                               source = parts[0].strip().strip('"')
+#                               target = parts[1].strip().strip('"').split('[')[0].strip()
+#                               G.add_edge(source, target)
+              
+#               # Calculate metrics
+#               node_count = G.number_of_nodes()
+#               edge_count = G.number_of_edges()
+              
+#               try:
+#                   avg_degree = sum(dict(G.degree()).values()) / node_count
+#               except ZeroDivisionError:
+#                   avg_degree = 0
+                  
+#               # Calculate complexity score based on graph properties
+#               complexity = (node_count * 0.4) + (edge_count * 0.6) + (avg_degree * 5)
+              
+#               return {
+#                   "nodes": node_count,
+#                   "edges": edge_count,
+#                   "avg_degree": round(avg_degree, 2),
+#                   "complexity_score": round(complexity, 2)
+#               }
+          
+#           if __name__ == "__main__":
+#               if len(sys.argv) < 2:
+#                   print("Usage: python analyse_graph.py graph.dot")
+#                   sys.exit(1)
+                  
+#               result = analyse_graph(sys.argv[1])
+#               print(f"Nodes: {result['nodes']}")
+#               print(f"Edges: {result['edges']}")
+#               print(f"Avg Degree: {result['avg_degree']}")
+#               print(f"Complexity Score: {result['complexity_score']}")
+              
+#               import json
+#               with open('graph_metrics.json', 'w') as f:
+#                   json.dump(result, f, indent=2)
+#           EOF
+            
+#             # Run appropriate command based on tool
+#             cd $IaC_DIR
+#             if [[ "${{ inputs.tool }}" == "terraform" ]]; then
+#               # Temporarily move backend config to avoid initialization issues
+#               if [ -f "backend.tf" ]; then
+#                 mv backend.tf backend.tf.bak
+#               fi
+              
+#               terraform init
+#               terraform graph > graph.dot
+              
+#               # Restore original backend config
+#               if [ -f "backend.tf.bak" ]; then
+#                 mv backend.tf.bak backend.tf
+#               fi
+#             else
+#               # For OpenTofu
+#               # Temporarily move backend config to avoid initialization issues
+#               if [ -f "backend.tf" ]; then
+#                 mv backend.tf backend.tf.bak
+#               fi
+              
+#               tofu init
+#               tofu graph > graph.dot
+              
+#               # Restore original backend config
+#               if [ -f "backend.tf.bak" ]; then
+#                 mv backend.tf.bak backend.tf
+#               fi
+#             fi
+            
+#             # Analyse the graph
+#             python ../../analyse_graph.py graph.dot
+#             mv graph_metrics.json ../../results/complexity/${tool}_graph_metrics.json
+#             complexity_score=$(jq '.complexity_score' ../../results/complexity/${tool}_graph_metrics.json)
+#             cd ../..
+            
+#           # CloudFormation: Analyse template structure complexity
+#           elif [[ "${{ inputs.tool }}" == "cloudformation" ]]; then
+#             # Create Python script for analysing CloudFormation templates
+#             cat > analyse_cfn.py << EOF
+#           import json
+#           import yaml
+#           import os
+#           import sys
+#           from collections import defaultdict
+          
+#           def load_yaml_or_json(file_path):
+#               with open(file_path, 'r') as f:
+#                   content = f.read()
+#                   try:
+#                       if file_path.endswith('.json'):
+#                           return json.loads(content)
+#                       else:
+#                           return yaml.safe_load(content)
+#                   except Exception as e:
+#                       print(f"Error loading {file_path}: {str(e)}")
+#                       return None
+          
+#           def analyse_cloudformation_dir(directory):
+#               resource_types = defaultdict(int)
+#               total_resources = 0
+#               template_count = 0
+#               parameter_count = 0
+#               output_count = 0
+#               mapping_count = 0
+#               condition_count = 0
+#               nested_stack_count = 0
+              
+#               # For CloudFormation, we need to look in the templates directory
+#               template_dir = os.path.join(directory, "templates")
+#               if os.path.exists(template_dir):
+#                   directory = template_dir
+                  
+#               print(f"Analyzing templates in: {directory}")
+              
+#               for root, _, files in os.walk(directory):
+#                   for file in files:
+#                       if file.endswith(('.yml', '.yaml', '.json')):
+#                           template_path = os.path.join(root, file)
+#                           print(f"Reading template: {template_path}")
+#                           template = load_yaml_or_json(template_path)
+                          
+#                           if template and isinstance(template, dict):
+#                               template_count += 1
+                              
+#                               # Count parameters
+#                               if 'Parameters' in template:
+#                                   parameter_count += len(template['Parameters'])
+                                  
+#                               # Count outputs
+#                               if 'Outputs' in template:
+#                                   output_count += len(template['Outputs'])
+                                  
+#                               # Count mappings
+#                               if 'Mappings' in template:
+#                                   mapping_count += len(template['Mappings'])
+                                  
+#                               # Count conditions
+#                               if 'Conditions' in template:
+#                                   condition_count += len(template['Conditions'])
+                                  
+#                               # Count resources and resource types
+#                               if 'Resources' in template:
+#                                   resources_section = template['Resources']
+#                                   for resource_id, resource in resources_section.items():
+#                                       total_resources += 1
+#                                       if 'Type' in resource:
+#                                           resource_type = resource['Type']
+#                                           resource_types[resource_type] += 1
+#                                           if resource_type == 'AWS::CloudFormation::Stack':
+#                                               nested_stack_count += 1
+              
+#               print(f"Found templates: {template_count}")
+#               print(f"Found resources: {total_resources}")
+#               print(f"Found resource types: {len(resource_types)}")
+              
+#               # Calculate complexity score
+#               base_score = total_resources * 1.5
+#               template_factor = template_count * 0.3
+#               nested_factor = nested_stack_count * 2
+#               param_factor = parameter_count * 0.1
+#               condition_factor = condition_count * 0.5
+#               mapping_factor = mapping_count * 0.2
+              
+#               complexity_score = base_score + template_factor + nested_factor + param_factor + condition_factor + mapping_factor
+#               if complexity_score == 0:
+#                   complexity_score = 10  # Default minimum score
+              
+#               result = {
+#                   "template_count": template_count,
+#                   "total_resources": total_resources,
+#                   "unique_resource_types": len(resource_types),
+#                   "parameter_count": parameter_count,
+#                   "output_count": output_count,
+#                   "mapping_count": mapping_count,
+#                   "condition_count": condition_count,
+#                   "nested_stack_count": nested_stack_count,
+#                   "resource_types": dict(resource_types),
+#                   "complexity_score": round(complexity_score, 2)
+#               }
+              
+#               return result
+          
+#           if __name__ == "__main__":
+#               if len(sys.argv) < 2:
+#                   print("Usage: python analyse_cfn.py <directory>")
+#                   sys.exit(1)
+                  
+#               result = analyse_cloudformation_dir(sys.argv[1])
+              
+#               print(f"Templates: {result['template_count']}")
+#               print(f"Resources: {result['total_resources']}")
+#               print(f"Resource Types: {result['unique_resource_types']}")
+#               print(f"Parameters: {result['parameter_count']}")
+#               print(f"Nested Stacks: {result['nested_stack_count']}")
+#               print(f"Complexity Score: {result['complexity_score']}")
+              
+#               with open('cfn_metrics.json', 'w') as f:
+#                   json.dump(result, f, indent=2)
+#           EOF
+            
+#             # Run the analysis
+#             python analyse_cfn.py $IaC_DIR
+#             mv cfn_metrics.json results/complexity/${tool}_structure_metrics.json
+#             complexity_score=$(jq '.complexity_score' results/complexity/${tool}_structure_metrics.json)
+#           fi
+          
+#           echo "complexity_score=$complexity_score" >> $GITHUB_OUTPUT
+      
+#       - name: Generate Final Complexity Report
+#         run: |
+#           cat > results/complexity/${tool}_report.json << EOF
+#           {
+#             "tool": "${{ inputs.tool }}",
+#             "basic_metrics": {
+#               "total_files": $(cat results/complexity/${tool}_metrics.json | jq '.total_files'),
+#               "total_lines": $(cat results/complexity/${tool}_metrics.json | jq '.total_lines'),
+#               "resource_count": $(cat results/complexity/${tool}_metrics.json | jq '.resource_count'),
+#               "module_count": $(cat results/complexity/${tool}_metrics.json | jq '.module_count')
+#             },
+#             "complexity_score": ${{ steps.tool-analysis.outputs.complexity_score || 10 }},
+#             "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" 
+#           }
+#           EOF
+          
+#           # Run the complexity analyser script if it exists
+#           if [ -f "scripts/analysers/complexity_analyser.py" ]; then
+#             python scripts/analysers/complexity_analyser.py --tool ${{ inputs.tool }} --input-dir infrastructure/${{ inputs.tool }} --output results/complexity/${tool}_final_report.json
+#           fi
+      
+#       - name: Upload Complexity Analysis Results
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: complexity-results-${{ inputs.tool }}
+#           path: results/complexity/
+
 # .github/workflows/complexity-workflow.yml
 
 name: Code Complexity Analysis
@@ -82,15 +458,15 @@ jobs:
             MODULE_COUNT=$(grep -r "$MODULE_PATTERN" $IaC_DIR --include="$FILE_PATTERN" 2>/dev/null | wc -l || echo "0")
           else
             # CloudFormation patterns
-            RESOURCE_PATTERN="Type: AWS::"
-            MODULE_PATTERN="Type: AWS::CloudFormation::Stack"
+            CF_RESOURCE_PATTERN="Type: AWS::"
+            CF_MODULE_PATTERN="Type: AWS::CloudFormation::Stack"
             
             # Explicitly count CloudFormation metrics in templates directory
             TEMPLATES_DIR="$IaC_DIR/templates"
             TOTAL_FILES=$(find $TEMPLATES_DIR -type f \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" \) 2>/dev/null | wc -l || echo "0")
             TOTAL_LINES=$(find $TEMPLATES_DIR -type f \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" \) 2>/dev/null | xargs cat 2>/dev/null | grep -v "^#" | grep -v "^//" | grep -v "^$" | wc -l || echo "0")
-            RESOURCE_COUNT=$(grep -r "$RESOURCE_PATTERN" $TEMPLATES_DIR --include="*.yml" --include="*.yaml" --include="*.json" 2>/dev/null | wc -l || echo "0")
-            MODULE_COUNT=$(grep -r "$MODULE_PATTERN" $TEMPLATES_DIR --include="*.yml" --include="*.yaml" --include="*.json" 2>/dev/null | wc -l || echo "0")
+            RESOURCE_COUNT=$(grep -r "$CF_RESOURCE_PATTERN" $TEMPLATES_DIR --include="*.yml" --include="*.yaml" --include="*.json" 2>/dev/null | wc -l || echo "0")
+            MODULE_COUNT=$(grep -r "$CF_MODULE_PATTERN" $TEMPLATES_DIR --include="*.yml" --include="*.yaml" --include="*.json" 2>/dev/null | wc -l || echo "0")
           fi
           
           # Output to file and for use in next steps
@@ -222,19 +598,55 @@ jobs:
           import yaml
           import os
           import sys
+          import re
           from collections import defaultdict
           
           def load_yaml_or_json(file_path):
               with open(file_path, 'r') as f:
                   content = f.read()
-                  try:
-                      if file_path.endswith('.json'):
-                          return json.loads(content)
-                      else:
-                          return yaml.safe_load(content)
-                  except Exception as e:
-                      print(f"Error loading {file_path}: {str(e)}")
-                      return None
+                  
+                  # Use regex to count resources and their types
+                  # Find all Type declarations in the Resources section
+                  type_matches = re.findall(r'Type: (AWS::[a-zA-Z0-9:]+)', content)
+                  
+                  # Create a simplified template structure
+                  template = {
+                      "Resources": {f"Resource{i}": {"Type": t} for i, t in enumerate(type_matches)}
+                  }
+                  
+                  # Check for Parameters section
+                  if 'Parameters:' in content:
+                      param_matches = re.findall(r'Parameters:.*?(?=\n[A-Za-z]+:|$)', content, re.DOTALL)
+                      if param_matches:
+                          # Count parameter entries (simplified)
+                          param_count = len(re.findall(r'\n  [A-Za-z0-9]+:', param_matches[0]))
+                          template["Parameters"] = {f"Param{i}": {} for i in range(param_count)}
+                  
+                  # Check for Outputs section
+                  if 'Outputs:' in content:
+                      output_matches = re.findall(r'Outputs:.*?(?=\n[A-Za-z]+:|$)', content, re.DOTALL)
+                      if output_matches:
+                          # Count output entries (simplified)
+                          output_count = len(re.findall(r'\n  [A-Za-z0-9]+:', output_matches[0]))
+                          template["Outputs"] = {f"Output{i}": {} for i in range(output_count)}
+                  
+                  # Check for Mappings section
+                  if 'Mappings:' in content:
+                      mapping_matches = re.findall(r'Mappings:.*?(?=\n[A-Za-z]+:|$)', content, re.DOTALL)
+                      if mapping_matches:
+                          # Count mapping entries (simplified)
+                          mapping_count = len(re.findall(r'\n  [A-Za-z0-9]+:', mapping_matches[0]))
+                          template["Mappings"] = {f"Mapping{i}": {} for i in range(mapping_count)}
+                  
+                  # Check for Conditions section
+                  if 'Conditions:' in content:
+                      condition_matches = re.findall(r'Conditions:.*?(?=\n[A-Za-z]+:|$)', content, re.DOTALL)
+                      if condition_matches:
+                          # Count condition entries (simplified)
+                          condition_count = len(re.findall(r'\n  [A-Za-z0-9]+:', condition_matches[0]))
+                          template["Conditions"] = {f"Condition{i}": {} for i in range(condition_count)}
+                  
+                  return template
           
           def analyse_cloudformation_dir(directory):
               resource_types = defaultdict(int)
