@@ -82,7 +82,7 @@ jobs:
           cd infrastructure/cloudformation
           python ../../scripts/analysers/cloudformation_cost_analyser.py \
             --template templates/main.yml \
-            --output results/cost/cloudformation_cost_analysis.json
+            --output ../../results/cost/cloudformation_cost_analysis.json
       
       #################################
       ## PR-SPECIFIC ANALYSIS
@@ -117,13 +117,13 @@ jobs:
           # Generate diff
           infracost diff --path=. --format=json --compare-to=/tmp/infracost-base.json --out-file=../../results/cost/infracost.json
       
-      - name: Run CloudFormation Cost Analysis for PR
-        if: github.event_name == 'pull_request' && steps.determine-tool.outputs.tool == 'cloudformation'
-        run: |
-          cd infrastructure/cloudformation
-          python ../../scripts/analysers/cloudformation_cost_analyser.py \
-            --template templates/main.yml \
-            --output ../../results/cost/cloudformation_cost_analysis.json
+      # - name: Run CloudFormation Cost Analysis for PR
+      #   if: github.event_name == 'pull_request' && steps.determine-tool.outputs.tool == 'cloudformation'
+      #   run: |
+      #     cd infrastructure/cloudformation
+      #     python ../../scripts/analysers/cloudformation_cost_analyser.py \
+      #       --template templates/main.yml \
+      #       --output results/cost/cloudformation_cost_analysis.json
       
       - name: Post PR Cost Comment
         if: github.event_name == 'pull_request' && (steps.determine-tool.outputs.tool == 'terraform' || steps.determine-tool.outputs.tool == 'opentofu')
