@@ -57,10 +57,11 @@ def analyse_complexity(tool, input_dir, output_file):
             try:
                 with open(struct_file, 'r') as f:
                     tool_metrics = json.load(f)
+                    print(f"Loaded structure metrics: {tool_metrics}")
             except Exception as e:
                 print(f"Error loading structure metrics: {str(e)}")
     
-    # Get resource metrics
+    # Get resource metrics from the basic metrics file
     resource_count = basic_metrics.get('resource_count', 0)
     module_count = basic_metrics.get('module_count', 0)
     
@@ -176,7 +177,7 @@ def analyse_resource_types(tool, input_dir):
     elif tool == "cloudformation":
         # Process CloudFormation templates
         import glob
-        import yaml
+        import re
         
         # For CloudFormation, check templates directory
         templates_dir = os.path.join(input_dir, "templates")
@@ -195,22 +196,15 @@ def analyse_resource_types(tool, input_dir):
         
         for file_path in cf_files:
             try:
-                if file_path.endswith('.json'):
-                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        import json
-                        template = json.load(f)
-                else:
-                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        template = yaml.safe_load(f)
-                
-                # Process CloudFormation Resources section
-                if template and isinstance(template, dict) and "Resources" in template:
-                    resources_section = template["Resources"]
-                    for resource_id, resource in resources_section.items():
-                        if "Type" in resource:
-                            resource_type = resource["Type"]
-                            resource_types[resource_type] += 1
-                            print(f"Found resource type: {resource_type}")
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                    
+                    # Use regex to extract resource types
+                    type_matches = re.findall(r'Type: (AWS::[a-zA-Z0-9:]+)', content)
+                    for resource_type in type_matches:
+                        resource_types[resource_type] += 1
+                        print(f"Found resource type: {resource_type}")
+                        
             except Exception as e:
                 print(f"Error processing {file_path}: {str(e)}")
     
