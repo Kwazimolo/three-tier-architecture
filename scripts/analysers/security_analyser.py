@@ -1,86 +1,88 @@
 #!/usr/bin/env python3
 """
-analyses security findings from Checkov for IaC code
+Analyses security findings from Checkov for IaC code
 """
 
 import argparse
 import json
 import os
+import sys
 
 
-def analyse_security(tool, aws_checks, iam_checks, network_checks, encryption_checks, output_file):
+def safe_load_json(file_path):
     """
-    analyses security findings from Checkov
+    Safely load JSON file with error handling
+    
+    Args:
+        file_path (str): Path to JSON file
+    
+    Returns:
+        dict: Parsed JSON or empty dictionary
+    """
+    try:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, FileNotFoundError) as e:
+        print(f"Error loading {file_path}: {e}")
+        return {}
+
+
+def analyse_security(tool, check_file, output_file):
+    """
+    Analyses security findings from Checkov
     
     Args:
         tool (str): The IaC tool (terraform, cloudformation, opentofu)
-        aws_checks (str): Path to AWS best practices check results
-        iam_checks (str): Path to IAM security check results
-        network_checks (str): Path to network security check results
-        encryption_checks (str): Path to encryption check results
+        check_file (str): Path to combined Checkov check results
         output_file (str): Where to save the security report
     """
     # Load check results
-    with open(aws_checks, 'r') as f:
-        aws_data = json.load(f)
+    checkov_data = safe_load_json(check_file)
     
-    with open(iam_checks, 'r') as f:
-        iam_data = json.load(f)
+    # Ensure we have data in the expected format
+    results = checkov_data.get('results', checkov_data)
     
-    with open(network_checks, 'r') as f:
-        network_data = json.load(f)
+    # Categorise checks
+    security_categories = {
+        "aws_best_practices": [],
+        "iam_security": [],
+        "network_security": [],
+        "encryption_security": []
+    }
     
-    with open(encryption_checks, 'r') as f:
-        encryption_data = json.load(f)
+    # Process each check
+    passed_checks = results.get('passed_checks', [])
+    failed_checks = results.get('failed_checks', [])
     
-    # Process results
+    for check in passed_checks + failed_checks:
+        check_name = check.get('check_name', '').lower()
+        category = "aws_best_practices"
+        
+        if "iam" in check_name:
+            category = "iam_security"
+        elif "network" in check_name or "vpc" in check_name:
+            category = "network_security"
+        elif "encrypt" in check_name or "encryption" in check_name:
+            category = "encryption_security"
+        
+        # Store the check
+        security_categories[category].append(check)
+    
+    # Calculate security metrics
     security_metrics = {
         "tool": tool,
-        "aws_best_practices": {
-            "passed": len(aws_data['results'].get('passed_checks', [])),
-            "failed": len(aws_data['results'].get('failed_checks', [])),
-            "pass_percentage": calculate_pass_percentage(aws_data)
-        },
-        "iam_security": {
-            "passed": len(iam_data['results'].get('passed_checks', [])),
-            "failed": len(iam_data['results'].get('failed_checks', [])),
-            "pass_percentage": calculate_pass_percentage(iam_data)
-        },
-        "network_security": {
-            "passed": len(network_data['results'].get('passed_checks', [])),
-            "failed": len(network_data['results'].get('failed_checks', [])),
-            "pass_percentage": calculate_pass_percentage(network_data)
-        },
-        "encryption_security": {
-            "passed": len(encryption_data['results'].get('passed_checks', [])),
-            "failed": len(encryption_data['results'].get('failed_checks', [])),
-            "pass_percentage": calculate_pass_percentage(encryption_data)
-        }
+        "aws_best_practices": categorise_checks(security_categories["aws_best_practices"]),
+        "iam_security": categorise_checks(security_categories["iam_security"]),
+        "network_security": categorise_checks(security_categories["network_security"]),
+        "encryption_security": categorise_checks(security_categories["encryption_security"])
     }
     
     # Calculate overall scores
-    total_passed = (security_metrics["aws_best_practices"]["passed"] +
-                   security_metrics["iam_security"]["passed"] +
-                   security_metrics["network_security"]["passed"] +
-                   security_metrics["encryption_security"]["passed"])
+    security_metrics["overall"] = calculate_overall_security(security_metrics)
     
-    total_failed = (security_metrics["aws_best_practices"]["failed"] +
-                    security_metrics["iam_security"]["failed"] +
-                    security_metrics["network_security"]["failed"] +
-                    security_metrics["encryption_security"]["failed"])
-    
-    total_checks = total_passed + total_failed
-    
-    security_metrics["overall"] = {
-        "total_checks": total_checks,
-        "passed": total_passed,
-        "failed": total_failed,
-        "pass_percentage": 100 * total_passed / total_checks if total_checks > 0 else 0,
-        "security_score": calculate_security_score(security_metrics)
-    }
-    
-    # Extract common failure patterns
-    security_metrics["common_failures"] = extract_common_failures(aws_data, iam_data, network_data, encryption_data)
+    # Extract common failures
+    security_metrics["common_failures"] = extract_common_failures(results.get('failed_checks', []))
     
     # Save the report
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -94,74 +96,106 @@ def analyse_security(tool, aws_checks, iam_checks, network_checks, encryption_ch
     return security_metrics
 
 
-def calculate_pass_percentage(checkov_data):
-    """Calculate the percentage of passed checks"""
-    passed = len(checkov_data['results'].get('passed_checks', []))
-    failed = len(checkov_data['results'].get('failed_checks', []))
-    total = passed + failed
-    
-    return 100 * passed / total if total > 0 else 0
-
-
-def calculate_security_score(metrics):
+def categorise_checks(checks):
     """
-    Calculate a security score based on the weighted importance of different security aspects
+    Categorise and count security checks
     
-    Returns a score from 0-100, where 100 is most secure
+    Args:
+        checks (list): List of security checks
+    
+    Returns:
+        dict: Categorised check metrics
+    """
+    passed = [c for c in checks if c.get('check_result', {}).get('result') == 'PASSED']
+    failed = [c for c in checks if c.get('check_result', {}).get('result') == 'FAILED']
+    
+    total = len(passed) + len(failed)
+    pass_percentage = 100 * len(passed) / total if total > 0 else 0
+    
+    return {
+        "passed": len(passed),
+        "failed": len(failed),
+        "pass_percentage": round(pass_percentage, 2)
+    }
+
+
+def calculate_overall_security(metrics):
+    """
+    Calculate overall security score
+    
+    Args:
+        metrics (dict): Security metrics for different categories
+    
+    Returns:
+        dict: Overall security metrics
     """
     # Weights for different security aspects (totaling 100%)
     weights = {
         "aws_best_practices": 0.2,
-        "iam_security": 0.3,        # IAM is most critical
-        "network_security": 0.3,    # Network security equally important
+        "iam_security": 0.3,
+        "network_security": 0.3,
         "encryption_security": 0.2
     }
     
     # Calculate weighted score
-    score = (
-        weights["aws_best_practices"] * metrics["aws_best_practices"]["pass_percentage"] +
-        weights["iam_security"] * metrics["iam_security"]["pass_percentage"] +
-        weights["network_security"] * metrics["network_security"]["pass_percentage"] +
-        weights["encryption_security"] * metrics["encryption_security"]["pass_percentage"]
+    score = sum(
+        weights[category] * data['pass_percentage']
+        for category, data in metrics.items()
+        if category != 'overall'
     )
     
-    return round(score, 2)
+    total_passed = sum(
+        data['passed'] for category, data in metrics.items()
+        if category != 'overall'
+    )
+    total_failed = sum(
+        data['failed'] for category, data in metrics.items()
+        if category != 'overall'
+    )
+    total_checks = total_passed + total_failed
+    
+    return {
+        "total_checks": total_checks,
+        "passed": total_passed,
+        "failed": total_failed,
+        "pass_percentage": round(100 * total_passed / total_checks, 2) if total_checks > 0 else 0,
+        "security_score": round(score, 2)
+    }
 
 
-def extract_common_failures(aws_data, iam_data, network_data, encryption_data):
-    """Extract and categorize common security failures"""
-    all_failures = []
+def extract_common_failures(failed_checks):
+    """
+    Extract and categorize common security failures
     
-    # Process each set of check results
-    for data, category in [
-        (aws_data, "AWS Best Practices"),
-        (iam_data, "IAM Security"),
-        (network_data, "Network Security"),
-        (encryption_data, "Encryption")
-    ]:
-        for check in data['results'].get('failed_checks', []):
-            all_failures.append({
-                "category": category,
-                "check_id": check.get('check_id', ''),
-                "check_name": check.get('check_name', ''),
-                "resource": check.get('resource', ''),
-                "guideline": check.get('guideline', '')
-            })
+    Args:
+        failed_checks (list): List of failed security checks
     
-    # Group failures by check_id to find common patterns
+    Returns:
+        list: Sorted list of common failures
+    """
     failure_counts = {}
-    for failure in all_failures:
-        check_id = failure['check_id']
+    
+    for check in failed_checks:
+        check_id = check.get('check_id', '')
+        if not check_id:
+            continue
+        
         if check_id not in failure_counts:
             failure_counts[check_id] = {
                 "count": 0,
-                "check_name": failure['check_name'],
-                "category": failure['category'],
-                "guideline": failure['guideline']
+                "check_name": check.get('check_name', ''),
+                "resource_types": set(),
+                "guideline": check.get('guideline', '')
             }
+        
         failure_counts[check_id]["count"] += 1
+        failure_counts[check_id]["resource_types"].add(check.get('resource_type', ''))
     
-    # Sort by frequency
+    # Convert resource_types to list and sort failures
+    for failure in failure_counts.values():
+        failure["resource_types"] = list(failure["resource_types"])
+    
+    # Sort by frequency and convert to list
     sorted_failures = sorted(
         [{"check_id": k, **v} for k, v in failure_counts.items()],
         key=lambda x: x["count"],
@@ -172,21 +206,15 @@ def extract_common_failures(aws_data, iam_data, network_data, encryption_data):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="analyse IaC security findings")
+    parser = argparse.ArgumentParser(description="Analyse IaC security findings")
     parser.add_argument("--tool", required=True, help="IaC tool (terraform, cloudformation, opentofu)")
-    parser.add_argument("--aws-checks", required=True, help="Path to AWS checks JSON")
-    parser.add_argument("--iam-checks", required=True, help="Path to IAM checks JSON")
-    parser.add_argument("--network-checks", required=True, help="Path to network checks JSON")
-    parser.add_argument("--encryption-checks", required=True, help="Path to encryption checks JSON")
+    parser.add_argument("--check-file", required=True, help="Path to Checkov checks JSON")
     parser.add_argument("--output", required=True, help="Output JSON file for security report")
     
     args = parser.parse_args()
     
     analyse_security(
         args.tool,
-        args.aws_checks,
-        args.iam_checks,
-        args.network_checks,
-        args.encryption_checks,
+        args.check_file,
         args.output
     )

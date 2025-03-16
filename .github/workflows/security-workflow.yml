@@ -1,113 +1,166 @@
 # .github/workflows/security-workflow.yml
 
-name: Security Analysis
+# name: Security Analysis
+
+# on:
+#   workflow_call:
+#     inputs:
+#       tool:
+#         required: true
+#         type: string
+#         description: 'The IaC tool to analyse for security (terraform, cloudformation, opentofu)'
+#     secrets:
+#       AWS_ACCESS_KEY_ID:
+#         required: true
+#       AWS_SECRET_ACCESS_KEY:
+#         required: true
+
+# jobs:
+#   analyse-security:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+#         with:
+#           ref: terraform # Branch name
+        
+#       - name: Setup Python
+#         uses: actions/setup-python@v3
+#         with:
+#           python-version: '3.10'
+          
+#       - name: Setup AWS Credentials
+#         uses: aws-actions/configure-aws-credentials@v2
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: eu-west-1
+          
+#       - name: Ensure results directory exists
+#         run: |
+#           mkdir -p results/security
+      
+#       - name: Install Checkov
+#         run: |
+#           pip install checkov
+#           checkov --version
+      
+#       - name: Run Security Analysis
+#         run: |
+#           # Determine which directory to analyse
+#           if [ "${{ inputs.tool }}" == "terraform" ]; then
+#             IaC_DIR="infrastructure/terraform"
+#             FRAMEWORK="terraform"
+#           elif [ "${{ inputs.tool }}" == "opentofu" ]; then
+#             IaC_DIR="infrastructure/openTofu"  # Note the capital 'T' in openTofu
+#             FRAMEWORK="terraform" # Use terraform framework for OpenTofu
+#           elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
+#             IaC_DIR="infrastructure/cloudformation"
+#             FRAMEWORK="cloudformation"
+#           fi
+          
+#           # Ensure the directory exists
+#           if [ ! -d "$IaC_DIR" ]; then
+#             echo "Warning: Directory $IaC_DIR not found"
+#             mkdir -p $IaC_DIR
+            
+#             # Create minimal placeholder file based on framework
+#             if [ "$FRAMEWORK" == "terraform" ]; then
+#               echo "# Placeholder file" > $IaC_DIR/placeholder.tf
+#             elif [ "$FRAMEWORK" == "cloudformation" ]; then
+#               echo "{}" > $IaC_DIR/placeholder.json
+#             fi
+#           fi
+          
+#           # Run Checkov security checks with error handling
+#           echo "Running security analysis for ${{ inputs.tool }} in $IaC_DIR..."
+          
+#           # Create empty JSON results in case Checkov fails
+#           echo '{"results": {"passed_checks": [], "failed_checks": []}}' > results/security/${{ inputs.tool }}_aws_checks.json
+#           echo '{"results": {"passed_checks": [], "failed_checks": []}}' > results/security/${{ inputs.tool }}_iam_checks.json
+#           echo '{"results": {"passed_checks": [], "failed_checks": []}}' > results/security/${{ inputs.tool }}_network_checks.json
+#           echo '{"results": {"passed_checks": [], "failed_checks": []}}' > results/security/${{ inputs.tool }}_encryption_checks.json
+          
+#           # AWS security best practices
+#           checkov -d $IaC_DIR --framework $FRAMEWORK --check AWS --output json > results/security/${{ inputs.tool }}_aws_checks.json || true
+          
+#           # IAM security checks
+#           checkov -d $IaC_DIR --framework $FRAMEWORK --check IAM --output json > results/security/${{ inputs.tool }}_iam_checks.json || true
+          
+#           # Network security checks
+#           checkov -d $IaC_DIR --framework $FRAMEWORK --check NETWORKS --output json > results/security/${{ inputs.tool }}_network_checks.json || true
+          
+#           # Encryption checks
+#           checkov -d $IaC_DIR --framework $FRAMEWORK --check ENCRYPTION --output json > results/security/${{ inputs.tool }}_encryption_checks.json || true
+          
+#           # Check if script exists with UK spelling and generate summary
+#           if [ -f "scripts/analysers/security_analyser.py" ]; then
+#             python scripts/analysers/security_analyser.py --tool ${{ inputs.tool }} \
+#               --aws-checks results/security/${{ inputs.tool }}_aws_checks.json \
+#               --iam-checks results/security/${{ inputs.tool }}_iam_checks.json \
+#               --network-checks results/security/${{ inputs.tool }}_network_checks.json \
+#               --encryption-checks results/security/${{ inputs.tool }}_encryption_checks.json \
+#               --output results/security/${{ inputs.tool }}_security_report.json
+#           else
+#             # Create a minimal report since script doesn't exist
+#             echo "{\"tool\": \"${{ inputs.tool }}\", \"overall\": {\"passed\": 0, \"failed\": 0, \"pass_percentage\": 0, \"security_score\": 50}}" > results/security/${{ inputs.tool }}_security_report.json
+#           fi
+    
+#       - name: Upload Security Analysis Results
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: security-results-${{ inputs.tool }}
+#           path: results/security/
+
+name: Security Analysis Workflow
 
 on:
-  workflow_call:
-    inputs:
-      tool:
-        required: true
-        type: string
-        description: 'The IaC tool to analyse for security (terraform, cloudformation, opentofu)'
-    secrets:
-      AWS_ACCESS_KEY_ID:
-        required: true
-      AWS_SECRET_ACCESS_KEY:
-        required: true
+  push:
+    branches:
+      - terraform
+      - opentofu
+      - cloudformation
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  analyse-security:
+  security-scan:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          ref: terraform # Branch name
-        
-      - name: Setup Python
-        uses: actions/setup-python@v3
-        with:
-          python-version: '3.10'
-          
-      - name: Setup AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1
-          
-      - name: Ensure results directory exists
-        run: |
-          mkdir -p results/security
-      
-      - name: Install Checkov
-        run: |
-          pip install checkov
-          checkov --version
-      
-      - name: Run Security Analysis
-        run: |
-          # Determine which directory to analyse
-          if [ "${{ inputs.tool }}" == "terraform" ]; then
-            IaC_DIR="infrastructure/terraform"
-            FRAMEWORK="terraform"
-          elif [ "${{ inputs.tool }}" == "opentofu" ]; then
-            IaC_DIR="infrastructure/openTofu"  # Note the capital 'T' in openTofu
-            FRAMEWORK="terraform" # Use terraform framework for OpenTofu
-          elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
-            IaC_DIR="infrastructure/cloudformation"
-            FRAMEWORK="cloudformation"
-          fi
-          
-          # Ensure the directory exists
-          if [ ! -d "$IaC_DIR" ]; then
-            echo "Warning: Directory $IaC_DIR not found"
-            mkdir -p $IaC_DIR
-            
-            # Create minimal placeholder file based on framework
-            if [ "$FRAMEWORK" == "terraform" ]; then
-              echo "# Placeholder file" > $IaC_DIR/placeholder.tf
-            elif [ "$FRAMEWORK" == "cloudformation" ]; then
-              echo "{}" > $IaC_DIR/placeholder.json
-            fi
-          fi
-          
-          # Run Checkov security checks with error handling
-          echo "Running security analysis for ${{ inputs.tool }} in $IaC_DIR..."
-          
-          # Create empty JSON results in case Checkov fails
-          echo '{"results": {"passed_checks": [], "failed_checks": []}}' > results/security/${{ inputs.tool }}_aws_checks.json
-          echo '{"results": {"passed_checks": [], "failed_checks": []}}' > results/security/${{ inputs.tool }}_iam_checks.json
-          echo '{"results": {"passed_checks": [], "failed_checks": []}}' > results/security/${{ inputs.tool }}_network_checks.json
-          echo '{"results": {"passed_checks": [], "failed_checks": []}}' > results/security/${{ inputs.tool }}_encryption_checks.json
-          
-          # AWS security best practices
-          checkov -d $IaC_DIR --framework $FRAMEWORK --check AWS --output json > results/security/${{ inputs.tool }}_aws_checks.json || true
-          
-          # IAM security checks
-          checkov -d $IaC_DIR --framework $FRAMEWORK --check IAM --output json > results/security/${{ inputs.tool }}_iam_checks.json || true
-          
-          # Network security checks
-          checkov -d $IaC_DIR --framework $FRAMEWORK --check NETWORKS --output json > results/security/${{ inputs.tool }}_network_checks.json || true
-          
-          # Encryption checks
-          checkov -d $IaC_DIR --framework $FRAMEWORK --check ENCRYPTION --output json > results/security/${{ inputs.tool }}_encryption_checks.json || true
-          
-          # Check if script exists with UK spelling and generate summary
-          if [ -f "scripts/analysers/security_analyser.py" ]; then
-            python scripts/analysers/security_analyser.py --tool ${{ inputs.tool }} \
-              --aws-checks results/security/${{ inputs.tool }}_aws_checks.json \
-              --iam-checks results/security/${{ inputs.tool }}_iam_checks.json \
-              --network-checks results/security/${{ inputs.tool }}_network_checks.json \
-              --encryption-checks results/security/${{ inputs.tool }}_encryption_checks.json \
-              --output results/security/${{ inputs.tool }}_security_report.json
-          else
-            # Create a minimal report since script doesn't exist
-            echo "{\"tool\": \"${{ inputs.tool }}\", \"overall\": {\"passed\": 0, \"failed\": 0, \"pass_percentage\": 0, \"security_score\": 50}}" > results/security/${{ inputs.tool }}_security_report.json
-          fi
     
-      - name: Upload Security Analysis Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-results-${{ inputs.tool }}
-          path: results/security/
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.ref_name }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run Checkov Security Scan
+      id: checkov
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: infrastructure/${{ github.ref_name }}
+        output_format: json
+        output_file: results/security/${{ github.ref_name }}_checkov_results.json
+    
+    - name: Analyse Security Findings
+      run: |
+        python scripts/analysers/security_analyser.py \
+          --tool ${{ github.ref_name }} \
+          --check-file results/security/${{ github.ref_name }}_checkov_results.json \
+          --output results/security/${{ github.ref_name }}_security_report.json
+    
+    - name: Upload Security Reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-reports
+        path: results/security/*_security_report.json
