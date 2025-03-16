@@ -35,13 +35,61 @@ jobs:
       - name: Create Results Directory
         run: mkdir -p results/cost
       
+      #################################
+      ## INFRACOST SETUP
+      #################################
       - name: Setup Infracost
+        if: (github.event_name == 'pull_request' && (steps.determine-tool.outputs.tool == 'terraform' || steps.determine-tool.outputs.tool == 'opentofu')) || (github.event_name != 'pull_request' && (inputs.tool == 'terraform' || inputs.tool == 'opentofu'))
         uses: infracost/actions/setup@v3
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
       
+      #################################
+      ## CLOUDFORMATION SETUP
+      #################################
+      - name: Setup Python for CloudFormation
+        if: (github.event_name == 'pull_request' && steps.determine-tool.outputs.tool == 'cloudformation') || (github.event_name != 'pull_request' && inputs.tool == 'cloudformation')
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+      
+      - name: Install Python dependencies for CloudFormation
+        if: (github.event_name == 'pull_request' && steps.determine-tool.outputs.tool == 'cloudformation') || (github.event_name != 'pull_request' && inputs.tool == 'cloudformation')
+        run: pip install boto3 pyyaml
+      
+      - name: Setup AWS Credentials for CloudFormation
+        if: (github.event_name == 'pull_request' && steps.determine-tool.outputs.tool == 'cloudformation') || (github.event_name != 'pull_request' && inputs.tool == 'cloudformation')
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+      
+      #################################
+      ## WORKFLOW CALL ANALYSIS
+      #################################
+      - name: Run Infracost for workflow call
+        if: github.event_name != 'pull_request' && (inputs.tool == 'terraform' || inputs.tool == 'opentofu')
+        run: |
+          cd infrastructure/${{ inputs.tool }}
+          infracost breakdown --path=. --format=json --out-file=../../results/cost/infracost.json
+          infracost output --path=../../results/cost/infracost.json --format=table --out-file=../../results/cost/infracost_summary.txt
+          cat ../../results/cost/infracost_summary.txt
+      
+      - name: Run CloudFormation Cost Analysis for workflow
+        if: github.event_name != 'pull_request' && inputs.tool == 'cloudformation'
+        run: |
+          cd infrastructure/cloudformation
+          python ../scripts/analysers/cloudformation_cost_analyser.py \
+            --template templates/main.yml \
+            --output ../results/cost/cloudformation_cost_analysis.json
+      
+      #################################
+      ## PR-SPECIFIC ANALYSIS
+      #################################
       - name: Determine IaC Tool from PR
         id: determine-tool
+        if: github.event_name == 'pull_request'
         run: |
           CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
           if echo "$CHANGED_FILES" | grep -q "infrastructure/terraform/"; then
@@ -54,36 +102,31 @@ jobs:
             echo "tool=terraform" >> $GITHUB_OUTPUT
           fi
       
-      # For PR diff analysis
-      - name: Generate Infracost diff
-        if: steps.determine-tool.outputs.tool == 'terraform' || steps.determine-tool.outputs.tool == 'opentofu'
+      - name: Generate Infracost diff for PR
+        if: github.event_name == 'pull_request' && (steps.determine-tool.outputs.tool == 'terraform' || steps.determine-tool.outputs.tool == 'opentofu')
         run: |
           # Checkout base branch for baseline
           git checkout ${{ github.event.pull_request.base.ref }}
           cd infrastructure/${{ steps.determine-tool.outputs.tool }}
-          ${{ steps.determine-tool.outputs.tool == 'terraform' && 'terraform' || 'tofu' }} init -backend=false
           infracost breakdown --path=. --format=json --out-file=/tmp/infracost-base.json
           
           # Return to PR branch for comparison
           git checkout ${{ github.event.pull_request.head.ref }}
           cd infrastructure/${{ steps.determine-tool.outputs.tool }}
-          ${{ steps.determine-tool.outputs.tool == 'terraform' && 'terraform' || 'tofu' }} init -backend=false
           
           # Generate diff
           infracost diff --path=. --format=json --compare-to=/tmp/infracost-base.json --out-file=../../results/cost/infracost.json
       
-      # CloudFormation PR Analysis
-      - name: Run CloudFormation Cost Analysis
-        if: steps.determine-tool.outputs.tool == 'cloudformation'
+      - name: Run CloudFormation Cost Analysis for PR
+        if: github.event_name == 'pull_request' && steps.determine-tool.outputs.tool == 'cloudformation'
         run: |
           cd infrastructure/cloudformation
           python ../../scripts/analysers/cloudformation_cost_analyser.py \
             --template templates/main.yml \
             --output ../../results/cost/cloudformation_cost_analysis.json
       
-      # Post PR comments
-      - name: Post Cost Analysis Comment
-        if: steps.determine-tool.outputs.tool == 'terraform' || steps.determine-tool.outputs.tool == 'opentofu'
+      - name: Post PR Cost Comment
+        if: github.event_name == 'pull_request' && (steps.determine-tool.outputs.tool == 'terraform' || steps.determine-tool.outputs.tool == 'opentofu')
         run: |
           infracost comment github \
             --path results/cost/infracost.json \
@@ -92,67 +135,19 @@ jobs:
             --pull-request ${{ github.event.pull_request.number }} \
             --behavior update
       
+      #################################
+      ## ARTIFACT UPLOAD
+      #################################
       - name: Upload Cost Analysis Results
+        if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: cost-results
           path: results/cost/
-  
-  workflow-cost-analysis:
-    name: Workflow Cost Analysis
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          ref: terraform # Branch name
       
-      - name: Create Results Directory
-        run: mkdir -p results/cost
-      
-      - name: Setup Python
-        if: inputs.tool == 'cloudformation'
-        uses: actions/setup-python@v3
-        with:
-          python-version: '3.10'
-      
-      - name: Install Python dependencies
-        if: inputs.tool == 'cloudformation'
-        run: pip install boto3 pyyaml
-      
-      - name: Setup AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1
-      
-      - name: Setup Infracost
-        if: inputs.tool == 'terraform' || inputs.tool == 'opentofu'
-        uses: infracost/actions/setup@v3
-        with:
-          api-key: ${{ secrets.INFRACOST_API_KEY }}
-      
-      - name: Run Infracost
-        if: inputs.tool == 'terraform' || inputs.tool == 'opentofu'
-        run: |
-          cd infrastructure/${{ inputs.tool }}
-          ${{ inputs.tool == 'terraform' && 'terraform' || 'tofu' }} init -backend=false
-          infracost breakdown --path=. --format=json --out-file=../../results/cost/infracost.json
-          infracost output --path=../../results/cost/infracost.json --format=table --out-file=../../results/cost/infracost_summary.txt
-          cat ../../results/cost/infracost_summary.txt
-      
-      - name: Run CloudFormation Cost Analysis
-        if: inputs.tool == 'cloudformation'
-        run: |
-          cd infrastructure/cloudformation
-          python ../scripts/analysers/cloudformation_cost_analyser.py \
-            --template templates/main.yml \
-            --output ../results/cost/cloudformation_cost_analysis.json
-      
-      - name: Upload Cost Analysis Results
+      - name: Upload Cost Analysis Results for workflow
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: cost-results-cloudformation
-          path: results/cost/   
+          name: cost-results-${{ inputs.tool }}
+          path: results/cost/
