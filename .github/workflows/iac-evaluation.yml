@@ -41,8 +41,21 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
+  cost:
+    needs: security
+    strategy:
+      matrix:
+        tool: [terraform, cloudformation, opentofu]
+    uses: ./.github/workflows/cost-workflow.yml
+    with:
+      tool: ${{ matrix.tool }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+
   # deployment:
-  #   needs: security
+  #   needs: cost
   #   strategy:
   #     matrix:
   #       tool: [terraform, cloudformation, opentofu]
@@ -52,31 +65,6 @@ jobs:
   #   secrets:
   #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-  # performance:
-  #   needs: deployment
-  #   strategy:
-  #     matrix:
-  #       tool: [terraform, cloudformation, opentofu]
-  #   uses: ./.github/workflows/performance-workflow.yml
-  #   with:
-  #     tool: ${{ matrix.tool }}
-  #   secrets:
-  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-  # cost:
-  #   needs: deployment
-  #   strategy:
-  #     matrix:
-  #       tool: [terraform, cloudformation, opentofu]
-  #   uses: ./.github/workflows/cost-workflow.yml
-  #   with:
-  #     tool: ${{ matrix.tool }}
-  #   secrets:
-  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #     INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
 
   # report:
   #   needs: [complexity, security, deployment, performance, cost]
