@@ -115,14 +115,17 @@
 name: Security Analysis Workflow
 
 on:
-  push:
-    branches:
-      - terraform
-      - opentofu
-      - cloudformation
-  pull_request:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      tool:
+        required: true
+        type: string
+        description: 'The IaC tool to analyse for security (terraform, cloudformation, opentofu)'
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
 
 jobs:
   security-scan:
