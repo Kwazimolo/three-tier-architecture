@@ -169,7 +169,7 @@ jobs:
       with:
         directory: infrastructure/${{ inputs.tool }}
         output_format: json
-        output_file: results/security/${{ inputs.tool }}_checkov_results.json
+        output_file_path: results/security/${{ inputs.tool }}_checkov_results.json
         check: ${{ steps.select-checks.outputs.checks }}
         skip_framework: dockerfile,secrets,helm,kustomize
         quiet: false
@@ -181,15 +181,6 @@ jobs:
         cat results/security/${{ inputs.tool }}_checkov_results.json || echo "File not found"
         echo "Directory contents:"
         ls -l results/security
-
-    # - name: Run Checkov Security Scan
-    #   run: |
-    #     checkov -d infrastructure/${{ inputs.tool }} \
-    #       --framework $([[ "${{ inputs.tool }}" == "cloudformation" ]] && echo "cloudformation" || echo "terraform") \
-    #       --check "${{ steps.select-checks.outputs.checks }}" \
-    #       --output json \
-    #       --skip-framework dockerfile,secrets,helm,kustomize \
-    #       > results/security/${{ inputs.tool }}_checkov_results.json
     
     - name: Analyse Security Findings
       run: |
