@@ -169,6 +169,7 @@ jobs:
         check: ${{ steps.select-checks.outputs.checks }}
         skip_framework: dockerfile,secrets,helm,kustomize
         quiet: false
+        soft_fail: true
     
     - name: Analyse Security Findings
       run: |
