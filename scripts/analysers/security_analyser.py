@@ -49,6 +49,53 @@ def safe_load_json(file_path):
         return {}
 
 
+def extract_detailed_failures(failed_checks):
+    """
+    Extract and categorise detailed failure information
+    
+    Args:
+        failed_checks (list): List of failed checks from Checkov
+    
+    Returns:
+        dict: Categorised and summarised failure information
+    """
+    # Categorise failures
+    failure_categories = {}
+    failure_details = []
+    
+    for check in failed_checks:
+        # Extract key information about the failure
+        failure_info = {
+            "check_id": check.get('check_id', 'Unknown'),
+            "bc_check_id": check.get('bc_check_id', 'N/A'),
+            "check_name": check.get('check_name', 'Unnamed Check'),
+            "resource": check.get('resource', 'Unknown Resource'),
+            "severity": check.get('severity', 'Unknown'),
+            "guideline": check.get('guideline', 'No additional guideline')
+        }
+        
+        # Categorise by check name or resource type
+        category_key = check.get('check_name', 'Miscellaneous').split()[0]
+        if category_key not in failure_categories:
+            failure_categories[category_key] = 0
+        failure_categories[category_key] += 1
+        
+        failure_details.append(failure_info)
+    
+    # Sort failures by frequency of category
+    sorted_categories = sorted(
+        failure_categories.items(), 
+        key=lambda x: x[1], 
+        reverse=True
+    )
+    
+    return {
+        "total_failures": len(failed_checks),
+        "failure_categories": dict(sorted_categories),
+        "detailed_failures": failure_details[:50]  # Limit to top 50 for readability
+    }
+
+
 def analyse_security(tool, check_file, output_file):
     """
     Analyses security findings from Checkov
@@ -63,10 +110,17 @@ def analyse_security(tool, check_file, output_file):
     
     # Extract summary information
     summary = checkov_data.get('summary', {})
+    results = checkov_data.get('results', {})
     
-    # Additional metadata extraction
+    # Extract failed checks
+    failed_checks = results.get('failed_checks', [])
+    
+    # Total checks calculation
     total_checks = summary.get('passed', 0) + summary.get('failed', 0)
     pass_percentage = round(100 * summary.get('passed', 0) / total_checks, 2) if total_checks > 0 else 0
+    
+    # Extract detailed failure information
+    failure_analysis = extract_detailed_failures(failed_checks)
     
     # Prepare security metrics
     security_metrics = {
@@ -82,18 +136,11 @@ def analyse_security(tool, check_file, output_file):
         },
         "security_assessment": {
             "pass_percentage": pass_percentage,
-            "security_score": pass_percentage,  # Use pass percentage as security score
+            "security_score": pass_percentage,
             "total_resources": summary.get('resource_count', 0)
-        }
+        },
+        "failure_analysis": failure_analysis
     }
-    
-    # Prepare additional insights if available
-    if 'results' in checkov_data:
-        # Extract some additional context if detailed results exist
-        security_metrics["detailed_results"] = {
-            "passed_checks": len(checkov_data['results'].get('passed_checks', [])),
-            "failed_checks": len(checkov_data['results'].get('failed_checks', []))
-        }
     
     # Save the report
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -106,6 +153,9 @@ def analyse_security(tool, check_file, output_file):
     print(f"Passed checks: {summary.get('passed', 0)}")
     print(f"Failed checks: {summary.get('failed', 0)}")
     print(f"Pass percentage: {pass_percentage:.2f}%")
+    print("\nFailure Categories:")
+    for category, count in failure_analysis['failure_categories'].items():
+        print(f"- {category}: {count}")
     
     return security_metrics
 
@@ -125,7 +175,7 @@ def validate_report(report_file):
             report = json.load(f)
         
         # Basic validation checks
-        required_keys = ['tool', 'summary', 'security_assessment']
+        required_keys = ['tool', 'summary', 'security_assessment', 'failure_analysis']
         for key in required_keys:
             if key not in report:
                 print(f"Missing required key: {key}")
