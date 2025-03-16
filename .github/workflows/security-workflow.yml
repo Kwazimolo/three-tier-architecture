@@ -147,7 +147,7 @@ jobs:
         # Create results directory
         mkdir -p results/security
 
-        # Install analysis tools
+        # Install tools
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
@@ -175,12 +175,12 @@ jobs:
         quiet: false
         soft_fail: true
 
-    # - name: Debug Checkov Results
-    #   run: |
-    #     echo "Checkov results file contents:"
-    #     cat results/security/${{ inputs.tool }}_checkov_results.json || echo "File not found"
-    #     echo "Directory contents:"
-    #     ls -l results/security
+    - name: Debug Checkov Results
+      run: |
+        echo "Checkov results file contents:"
+        cat results/security/${{ inputs.tool }}_checkov_results.json || echo "File not found"
+        echo "Directory contents:"
+        ls -l results/security
 
     # - name: Run Checkov Security Scan
     #   run: |
