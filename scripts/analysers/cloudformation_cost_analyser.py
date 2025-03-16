@@ -1,6 +1,5 @@
 #cloudformation_cost_analyser.py
 
-#!/usr/bin/env python3
 """
 Analyses cost for CloudFormation templates using AWS Price List API
 """
@@ -14,6 +13,31 @@ import yaml
 # Simple in-memory cache for pricing API calls
 PRICING_CACHE = {}
 
+# Custom YAML constructor for CloudFormation tags
+def create_cfn_yaml_constructor():
+    # Define custom tag handlers
+    def generic_tag_handler(loader, tag_suffix, node):
+        # Just return a placeholder tag dictionary
+        if isinstance(node, yaml.ScalarNode):
+            return {"Ref": node.value} if tag_suffix == "Ref" else {f"{tag_suffix}": node.value}
+        elif isinstance(node, yaml.SequenceNode):
+            return {"Ref": loader.construct_sequence(node)} if tag_suffix == "Ref" else {f"{tag_suffix}": loader.construct_sequence(node)}
+        elif isinstance(node, yaml.MappingNode):
+            return {"Ref": loader.construct_mapping(node)} if tag_suffix == "Ref" else {f"{tag_suffix}": loader.construct_mapping(node)}
+        return None
+
+    # Create a new SafeLoader with CloudFormation tag handling
+    class CloudFormationLoader(yaml.SafeLoader):
+        pass
+
+    # Register a handler for each CloudFormation tag
+    cfn_tags = ['Ref', 'GetAtt', 'Join', 'Sub', 'Select', 'FindInMap', 'ImportValue', 'Split', 'Transform', 'Cidr', 'Base64']
+    for tag in cfn_tags:
+        CloudFormationLoader.add_constructor(f"!{tag}", lambda loader, node, tag=tag: generic_tag_handler(loader, tag, node))
+        CloudFormationLoader.add_multi_constructor("!", lambda loader, tag_suffix, node: generic_tag_handler(loader, tag_suffix, node))
+
+    return CloudFormationLoader
+
 def analyse_cloudformation_costs(template_file, output_file, region="eu-west-1"):
     """
     Analyses costs for CloudFormation templates
@@ -24,11 +48,32 @@ def analyse_cloudformation_costs(template_file, output_file, region="eu-west-1")
         region (str): AWS region for pricing
     """
     # Load the CloudFormation template
-    with open(template_file, 'r') as f:
-        if template_file.endswith('.yaml') or template_file.endswith('.yml'):
-            template = yaml.safe_load(f)
-        else:
-            template = json.load(f)
+    try:
+        with open(template_file, 'r') as f:
+            if template_file.endswith('.yaml') or template_file.endswith('.yml'):
+                # Use custom loader for CloudFormation YAML
+                CloudFormationLoader = create_cfn_yaml_constructor()
+                template = yaml.load(f, Loader=CloudFormationLoader)
+            else:
+                template = json.load(f)
+    except Exception as e:
+        print(f"Error loading template: {e}")
+        # Try alternate loading strategy as fallback
+        try:
+            with open(template_file, 'r') as f:
+                # Try to load as plain text and use simple parser
+                content = f.read()
+                # Basic resource extraction (simplified)
+                template = {"Resources": {}}
+                
+                # Simplistic parsing to extract resource types
+                import re
+                resource_matches = re.findall(r'Type:\s*([A-Za-z0-9:]+)', content)
+                for i, resource_type in enumerate(resource_matches):
+                    template["Resources"][f"Resource{i}"] = {"Type": resource_type}
+        except Exception as e2:
+            print(f"Fallback loading also failed: {e2}")
+            template = {"Resources": {}}
     
     # Extract resources
     resources = template.get('Resources', {})
@@ -61,6 +106,9 @@ def analyse_cloudformation_costs(template_file, output_file, region="eu-west-1")
         # EC2 instances
         if resource_type == 'AWS::EC2::Instance':
             instance_type = resource_properties.get('InstanceType', 't2.micro')
+            # If instance type is a CloudFormation reference or function, default to t2.micro
+            if isinstance(instance_type, dict):
+                instance_type = 't2.micro'
             
             # Try to get price from API
             try:
@@ -108,8 +156,16 @@ def analyse_cloudformation_costs(template_file, output_file, region="eu-west-1")
         # RDS instances
         elif resource_type == 'AWS::RDS::DBInstance':
             db_instance_class = resource_properties.get('DBInstanceClass', 'db.t3.micro')
+            if isinstance(db_instance_class, dict):
+                db_instance_class = 'db.t3.micro'
+                
             engine = resource_properties.get('Engine', 'mysql')
+            if isinstance(engine, dict):
+                engine = 'mysql'
+                
             multi_az = resource_properties.get('MultiAZ', False)
+            if isinstance(multi_az, dict):
+                multi_az = False
             
             # Simple mapping for RDS
             db_cost_map = {
@@ -138,14 +194,29 @@ def analyse_cloudformation_costs(template_file, output_file, region="eu-west-1")
         # DynamoDB
         elif resource_type == 'AWS::DynamoDB::Table':
             read_capacity = resource_properties.get('ProvisionedThroughput', {}).get('ReadCapacityUnits', 5)
+            if isinstance(read_capacity, dict):
+                read_capacity = 5
+                
             write_capacity = resource_properties.get('ProvisionedThroughput', {}).get('WriteCapacityUnits', 5)
+            if isinstance(write_capacity, dict):
+                write_capacity = 5
+                
             monthly_cost = (read_capacity * 0.00065 + write_capacity * 0.00065) * 730 + 10 * 0.25  # RCU + WCU + 10GB storage
         
         # Auto Scaling Groups
         elif resource_type == 'AWS::AutoScaling::AutoScalingGroup':
             min_size = resource_properties.get('MinSize', 1)
+            if isinstance(min_size, dict):
+                min_size = 1
+                
             max_size = resource_properties.get('MaxSize', 1)
+            if isinstance(max_size, dict):
+                max_size = 1
+                
             desired_capacity = resource_properties.get('DesiredCapacity', min_size)
+            if isinstance(desired_capacity, dict):
+                desired_capacity = min_size
+                
             monthly_cost = 0.0416 * 730 * desired_capacity  # Assume t3.medium instances
         
         # Add resource to analysis
