@@ -82,7 +82,7 @@ jobs:
           cd infrastructure/cloudformation
           python ../../scripts/analysers/cloudformation_cost_analyser.py \
             --template templates/main.yml \
-            --output ../results/cost/cloudformation_cost_analysis.json
+            --output results/cost/cloudformation_cost_analysis.json
       
       #################################
       ## PR-SPECIFIC ANALYSIS
