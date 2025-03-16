@@ -154,6 +154,10 @@ jobs:
         directory: infrastructure/${{ github.ref_name }}
         output_format: json
         output_file: results/security/${{ github.ref_name }}_checkov_results.json
+        check: ALL
+        skip_framework: dockerfile,secrets,helm,kustomize
+        quiet: false
+        framework: terraform,cloudformation
     
     - name: Analyse Security Findings
       run: |
