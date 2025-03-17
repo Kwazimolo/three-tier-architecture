@@ -44,7 +44,7 @@ jobs:
       - name: Setup Tools
         run: |
           # Install Terraform using HashiCorp's official repository
-          wget -O- terraform.tar.gz https://github.com/hashicorp/terraform/archive/refs/tags/v1.9.8.tar.gz
+          wget -O- terraform.tar.gz https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip
           mkdir -p terraform-temp
           unzip terraform.tar.gz -d terraform-temp
           sudo mv terraform-temp/terraform /usr/local/bin/
