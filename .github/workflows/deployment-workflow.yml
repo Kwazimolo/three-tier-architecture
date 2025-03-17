@@ -80,7 +80,7 @@ jobs:
           
           # Measure apply time
           echo "APPLY_START=$(date +%s)" >> $GITHUB_ENV
-          terraform apply -auto-approve -var="stack_name=${{ env.STACK_NAME }}"
+          terraform apply -auto-approve
           echo "APPLY_END=$(date +%s)" >> $GITHUB_ENV
           
           # Calculate times
@@ -96,7 +96,6 @@ jobs:
           cat > ../../results/deployment/terraform_deployment_report.json << EOF
           {
             "tool": "terraform",
-            "stack_name": "${{ env.STACK_NAME }}",
             "init_time_seconds": $INIT_DURATION,
             "apply_time_seconds": $APPLY_DURATION,
             "total_time_seconds": $TOTAL_DURATION,
@@ -119,7 +118,7 @@ jobs:
           
           # Measure apply time
           echo "APPLY_START=$(date +%s)" >> $GITHUB_ENV
-          tofu apply -auto-approve -var="stack_name=${{ env.STACK_NAME }}"
+          tofu apply -auto-approve
           echo "APPLY_END=$(date +%s)" >> $GITHUB_ENV
           
           # Calculate times
@@ -135,7 +134,6 @@ jobs:
           cat > ../../results/deployment/opentofu_deployment_report.json << EOF
           {
             "tool": "opentofu",
-            "stack_name": "${{ env.STACK_NAME }}",
             "init_time_seconds": $INIT_DURATION,
             "apply_time_seconds": $APPLY_DURATION,
             "total_time_seconds": $TOTAL_DURATION,
