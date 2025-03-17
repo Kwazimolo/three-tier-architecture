@@ -44,15 +44,21 @@ jobs:
       - name: Setup Tools
         run: |
           # Install Terraform using HashiCorp's official repository
-          wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-          sudo apt-get update
-          sudo apt-get install -y terraform
+          wget -O- terraform.tar.gz https://github.com/hashicorp/terraform/archive/refs/tags/v1.9.8.tar.gz
+          mkdir -p terraform-temp
+          unzip terraform.tar.gz -d terraform-temp
+          sudo mv terraform-temp/terraform /usr/local/bin/
+          sudo chmod +x /usr/local/bin/terraform
+          rm -rf terraform-temp terraform.tar.gz
           terraform --version
           
           # Install OpenTofu (using pre-built binary as no official package exists)
-          sudo wget -O /usr/local/bin/tofu https://github.com/opentofu/opentofu/releases/download/v1.6.0/tofu_1.6.0_linux_amd64
+          sudo wget -O opentofu.tar.gz https://github.com/opentofu/opentofu/releases/download/v1.9.0/tofu_1.9.0_linux_amd64.tar.gz
+          smkdir -p opentofu-temp
+          unzip opentofu.tar.gz -d opentofu-temp
+          sudo mv opentofu-temp/tofu /usr/local/bin/
           sudo chmod +x /usr/local/bin/tofu
+          rm -rf opentofu-temp opentofu.tar.gz
           tofu --version
           
       - name: Prepare deployment
