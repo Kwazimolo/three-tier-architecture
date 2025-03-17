@@ -56,7 +56,6 @@ function deploy_stack() {
     aws cloudformation deploy \
       --template-file $TEMPLATE_DIR/$MAIN_TEMPLATE \
       --stack-name $STACK_NAME \
-      --parameter-overrides file://$PARAMETERS_FILE \
       --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
       --region $REGION \
       --no-fail-on-empty-changeset
@@ -66,7 +65,6 @@ function deploy_stack() {
     aws cloudformation deploy \
       --template-file $TEMPLATE_DIR/$MAIN_TEMPLATE \
       --stack-name $STACK_NAME \
-      --parameter-overrides file://$PARAMETERS_FILE \
       --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
       --region $REGION
   fi
