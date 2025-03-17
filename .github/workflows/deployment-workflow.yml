@@ -41,25 +41,15 @@ jobs:
           pip install psutil boto3 awscli
           mkdir -p results/deployment
           
-      - name: Setup Tools
-        run: |
-          # Install Terraform using HashiCorp's official repository
-          wget -O- terraform.tar.gz https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip
-          mkdir -p terraform-temp
-          unzip terraform.tar.gz -d terraform-temp
-          sudo mv terraform-temp/terraform /usr/local/bin/
-          sudo chmod +x /usr/local/bin/terraform
-          rm -rf terraform-temp terraform.tar.gz
-          terraform --version
-          
-          # Install OpenTofu (using pre-built binary as no official package exists)
-          sudo wget -O opentofu.tar.gz https://github.com/opentofu/opentofu/releases/download/v1.9.0/tofu_1.9.0_linux_amd64.tar.gz
-          smkdir -p opentofu-temp
-          unzip opentofu.tar.gz -d opentofu-temp
-          sudo mv opentofu-temp/tofu /usr/local/bin/
-          sudo chmod +x /usr/local/bin/tofu
-          rm -rf opentofu-temp opentofu.tar.gz
-          tofu --version
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+      
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.9.0"
           
       - name: Prepare deployment
         run: |
