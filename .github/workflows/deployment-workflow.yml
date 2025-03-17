@@ -36,107 +36,218 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-1
           
-      - name: Ensure results directory exists
-        run: |
-          mkdir -p results/deployment
-       
-      
-      - name: Install monitoring tools
+      - name: Install dependencies
         run: |
           pip install psutil boto3 awscli
+          mkdir -p results/deployment
           
-      - name: Prepare deployment measurement
+      - name: Prepare deployment
         run: |
           # Create unique stack name with timestamp
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           echo "STACK_NAME=${{ inputs.tool }}-test-$TIMESTAMP" >> $GITHUB_ENV
+          
+          # Enable CloudTrail logging for API calls
+          aws cloudtrail create-trail --name "DeploymentAnalysisTrail-$TIMESTAMP" \
+            --s3-bucket-name tf-state-3tier-architecture \
+            --s3-key-prefix cloudtrail \
+            --is3-bucket-owner-check \
+            || echo "Using default CloudTrail"
+          
+          # Record metrics start time
           echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
-          mkdir -p results/deployment/${{ inputs.tool }}
-          
-      - name: Deploy Infrastructure
+          echo "Deployment starting at $(date)"
+      
+      #################################
+      ## TERRAFORM DEPLOYMENT
+      #################################
+      - name: Deploy with Terraform
+        if: inputs.tool == 'terraform'
         run: |
-          # Deploy based on tool and measure resource usage
-          if [ "${{ inputs.tool }}" == "terraform" ]; then
-            cd terraform
-            # Init
-            python ../scripts/utils/resource_monitor.py \
-              --command "terraform init" \
-              --output "../results/deployment/${{ inputs.tool }}/init_resources.json" \
-              --interval 0.5
-            
-            # Apply
-            python ../scripts/utils/resource_monitor.py \
-              --command "terraform apply -auto-approve -var='stack_name=${{ env.STACK_NAME }}'" \
-              --output "../results/deployment/${{ inputs.tool }}/apply_resources.json" \
-              --interval 0.5
-            
-          elif [ "${{ inputs.tool }}" == "opentofu" ]; then
-            cd opentofu
-            # Init
-            python ../scripts/utils/resource_monitor.py \
-              --command "tofu init" \
-              --output "../results/deployment/${{ inputs.tool }}/init_resources.json" \
-              --interval 0.5
-              
-            # Apply
-            python ../scripts/utils/resource_monitor.py \
-              --command "tofu apply -auto-approve -var='stack_name=${{ env.STACK_NAME }}'" \
-              --output "../results/deployment/${{ inputs.tool }}/apply_resources.json" \
-              --interval 0.5
-              
-          elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
-            cd cloudformation
-            # Deploy
-            python ../scripts/utils/resource_monitor.py \
-              --command "aws cloudformation deploy --template-file main.yaml --stack-name ${{ env.STACK_NAME }} --capabilities CAPABILITY_IAM" \
-              --output "../results/deployment/${{ inputs.tool }}/deploy_resources.json" \
-              --interval 0.5
-          fi
+          cd infrastructure/terraform
           
+          # Measure init time
+          echo "INIT_START=$(date +%s)" >> $GITHUB_ENV
+          terraform init
+          echo "INIT_END=$(date +%s)" >> $GITHUB_ENV
+          
+          # Measure apply time
+          echo "APPLY_START=$(date +%s)" >> $GITHUB_ENV
+          terraform apply -auto-approve -var="stack_name=${{ env.STACK_NAME }}"
+          echo "APPLY_END=$(date +%s)" >> $GITHUB_ENV
+          
+          # Calculate times
+          INIT_DURATION=$((INIT_END - INIT_START))
+          APPLY_DURATION=$((APPLY_END - APPLY_START))
+          TOTAL_DURATION=$((APPLY_END - INIT_START))
+          
+          echo "Terraform init time: ${INIT_DURATION}s"
+          echo "Terraform apply time: ${APPLY_DURATION}s"
+          echo "Total deployment time: ${TOTAL_DURATION}s"
+          
+          # Create simple deployment report
+          cat > ../../results/deployment/terraform_deployment_report.json << EOF
+          {
+            "tool": "terraform",
+            "stack_name": "${{ env.STACK_NAME }}",
+            "init_time_seconds": $INIT_DURATION,
+            "apply_time_seconds": $APPLY_DURATION,
+            "total_time_seconds": $TOTAL_DURATION,
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+      
+      #################################
+      ## OPENTOFU DEPLOYMENT
+      #################################
+      - name: Deploy with OpenTofu
+        if: inputs.tool == 'opentofu'
+        run: |
+          cd infrastructure/opentofu
+          
+          # Measure init time
+          echo "INIT_START=$(date +%s)" >> $GITHUB_ENV
+          tofu init
+          echo "INIT_END=$(date +%s)" >> $GITHUB_ENV
+          
+          # Measure apply time
+          echo "APPLY_START=$(date +%s)" >> $GITHUB_ENV
+          tofu apply -auto-approve -var="stack_name=${{ env.STACK_NAME }}"
+          echo "APPLY_END=$(date +%s)" >> $GITHUB_ENV
+          
+          # Calculate times
+          INIT_DURATION=$((INIT_END - INIT_START))
+          APPLY_DURATION=$((APPLY_END - APPLY_START))
+          TOTAL_DURATION=$((APPLY_END - INIT_START))
+          
+          echo "OpenTofu init time: ${INIT_DURATION}s"
+          echo "OpenTofu apply time: ${APPLY_DURATION}s"
+          echo "Total deployment time: ${TOTAL_DURATION}s"
+          
+          # Create simple deployment report
+          cat > ../../results/deployment/opentofu_deployment_report.json << EOF
+          {
+            "tool": "opentofu",
+            "stack_name": "${{ env.STACK_NAME }}",
+            "init_time_seconds": $INIT_DURATION,
+            "apply_time_seconds": $APPLY_DURATION,
+            "total_time_seconds": $TOTAL_DURATION,
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+      
+      #################################
+      ## CLOUDFORMATION DEPLOYMENT
+      #################################
+      - name: Deploy with CloudFormation
+        if: inputs.tool == 'cloudformation'
+        run: |
+          cd infrastructure/cloudformation
+          
+          # Generate unique stack name
+          sed -i "s/STACK_NAME=\"three-tier-architecture\"/STACK_NAME=\"${{ env.STACK_NAME }}\"/" scripts/deploy.sh
+          
+          # Measure deployment time
+          echo "DEPLOY_START=$(date +%s)" >> $GITHUB_ENV
+          
+          # Run the deployment script
+          ./scripts/deploy.sh
+          
+          echo "DEPLOY_END=$(date +%s)" >> $GITHUB_ENV
+          
+          # Calculate time
+          DEPLOY_DURATION=$((DEPLOY_END - DEPLOY_START))
+          
+          echo "CloudFormation deployment time: ${DEPLOY_DURATION}s"
+          
+          # Create simple deployment report
+          cat > ../../results/deployment/cloudformation_deployment_report.json << EOF
+          {
+            "tool": "cloudformation",
+            "stack_name": "${{ env.STACK_NAME }}",
+            "deploy_time_seconds": $DEPLOY_DURATION,
+            "total_time_seconds": $DEPLOY_DURATION,
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+      
+      #################################
+      ## API CALLS COLLECTION
+      #################################
+      - name: Collect API calls
+        run: |
           # Record end time
           echo "END_TIME=$(date +%s)" >> $GITHUB_ENV
           
-      - name: Collect CloudWatch Metrics
-        run: |
-          # Wait for CloudWatch metrics to become available
-          sleep 60
+          # Wait for CloudTrail events to be available
+          echo "Waiting for CloudTrail events to be available..."
+          sleep 30
           
-          # Collect API call metrics from CloudTrail
-          aws cloudtrail lookup-events --lookup-attributes AttributeKey=ResourceName,AttributeValue=${{ env.STACK_NAME }} > results/deployment/${{ inputs.tool }}/cloudtrail_events.json
+          # Get CloudTrail events for the deployment
+          aws cloudtrail lookup-events \
+            --lookup-attributes AttributeKey=ResourceName,AttributeValue=${{ env.STACK_NAME }} \
+            > results/deployment/${{ inputs.tool }}_cloudtrail_events.json
           
-          # Determine which resource monitoring file to use
-          if [ "${{ inputs.tool }}" == "cloudformation" ]; then
-            RESOURCE_FILE="results/deployment/${{ inputs.tool }}/deploy_resources.json"
-          else
-            RESOURCE_FILE="results/deployment/${{ inputs.tool }}/apply_resources.json"
-            INIT_RESOURCE_FILE="results/deployment/${{ inputs.tool }}/init_resources.json"
-          fi
+          # Count API calls by service
+          python - << EOF
+          import json
+          import os
           
-          # Collect resource creation metrics
-          python scripts/analysers/deployment_analyser.py \
-            --tool ${{ inputs.tool }} \
-            --stack-name ${{ env.STACK_NAME }} \
-            --resource-usage $RESOURCE_FILE \
-            --init-resource-usage ${INIT_RESOURCE_FILE:-""} \
-            --cloudtrail-events results/deployment/${{ inputs.tool }}/cloudtrail_events.json \
-            --start-time ${{ env.START_TIME }} \
-            --end-time ${{ env.END_TIME }} \
-            --output results/deployment/${{ inputs.tool }}/deployment_report.json
+          # Load CloudTrail events
+          with open('results/deployment/${{ inputs.tool }}_cloudtrail_events.json', 'r') as f:
+              events_data = json.load(f)
           
-      - name: Cleanup Infrastructure
-        run: |
-          echo "Cleaning up infrastructure..."
-          if [ "${{ inputs.tool }}" == "terraform" ]; then
-            cd terraform
-            terraform destroy -auto-approve -var="stack_name=${{ env.STACK_NAME }}"
-          elif [ "${{ inputs.tool }}" == "opentofu" ]; then
-            cd opentofu
-            tofu destroy -auto-approve -var="stack_name=${{ env.STACK_NAME }}"
-          elif [ "${{ inputs.tool }}" == "cloudformation" ]; then
-            aws cloudformation delete-stack --stack-name ${{ env.STACK_NAME }}
-            aws cloudformation wait stack-delete-complete --stack-name ${{ env.STACK_NAME }}
-          fi
+          # Count API calls by service
+          service_counts = {}
+          for event in events_data.get('Events', []):
+              if isinstance(event, dict) and 'CloudTrailEvent' in event:
+                  try:
+                      cloud_trail_event = json.loads(event['CloudTrailEvent'])
+                      event_source = cloud_trail_event.get('eventSource', '')
+                      
+                      # Extract service name
+                      if event_source:
+                          service = event_source.split('.')[0]
+                          if service not in service_counts:
+                              service_counts[service] = 0
+                          service_counts[service] += 1
+                  except Exception as e:
+                      pass
           
+          # Calculate total
+          total_calls = sum(service_counts.values())
+          
+          # Load existing report
+          report_file = f'results/deployment/${{ inputs.tool }}_deployment_report.json'
+          with open(report_file, 'r') as f:
+              report = json.load(f)
+          
+          # Add API call info
+          report['api_calls'] = {
+              'total_count': total_calls,
+              'service_breakdown': service_counts
+          }
+          
+          # Add deployment duration
+          elapsed_time = ${{ env.END_TIME }} - ${{ env.START_TIME }}
+          report['overall_deployment_time_seconds'] = elapsed_time
+          
+          # Save updated report
+          with open(report_file, 'w') as f:
+              json.dump(report, f, indent=2)
+          
+          print(f"Total API calls: {total_calls}")
+          print(f"Total deployment time: {elapsed_time} seconds")
+          
+          # Print service breakdown
+          print("\nAPI calls by service:")
+          for service, count in sorted(service_counts.items(), key=lambda x: x[1], reverse=True):
+              print(f"  {service}: {count}")
+          EOF
+      
+      #################################
+      ## UPLOAD RESULTS
+      #################################
       - name: Upload Deployment Results
         uses: actions/upload-artifact@v4
         with:

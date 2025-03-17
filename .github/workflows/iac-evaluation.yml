@@ -54,22 +54,28 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
 
-  # deployment:
-  #   needs: cost
-  #   strategy:
-  #     matrix:
-  #       tool: [terraform, cloudformation, opentofu]
-  #   uses: ./.github/workflows/deployment-workflow.yml
-  #   with:
-  #     tool: ${{ matrix.tool }}
-  #   secrets:
-  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  deployment:
+    needs: cost
+    strategy:
+      matrix:
+        tool: [terraform, cloudformation, opentofu]
+    uses: ./.github/workflows/deployment-workflow.yml
+    with:
+      tool: ${{ matrix.tool }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   # report:
-  #   needs: [complexity, security, deployment, performance, cost]
+  #   needs: [complexity, security, deployment, cost]
   #   uses: ./.github/workflows/report-workflow.yml
   #   secrets:
   #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # teardown:
+  #   needs: [complexity, security,cost, deployment,report]
+  #   uses: ./.github/workflows/teardown-workflow.yml
+  #   secrets:
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
