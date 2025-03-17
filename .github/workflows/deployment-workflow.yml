@@ -35,17 +35,28 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-1
-          
+
       - name: Install dependencies
         run: |
           pip install psutil boto3 awscli
           mkdir -p results/deployment
           
+      - name: Setup Tools
+        run: |
+          # Install Terraform
+          curl -fsSL https://releases.hashicorp.com/terraform/1.5.7/terraform_1.5.7_linux_amd64.zip -o terraform.zip
+          unzip terraform.zip
+          sudo mv terraform /usr/local/bin/
+          terraform --version
+          
+          # Install OpenTofu
+          curl -fsSL https://github.com/opentofu/opentofu/releases/download/v1.6.0/tofu_1.6.0_linux_amd64.zip -o opentofu.zip
+          unzip opentofu.zip
+          sudo mv tofu /usr/local/bin/
+          tofu --version
+          
       - name: Prepare deployment
         run: |
-          # Create unique stack name with timestamp
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          echo "STACK_NAME=${{ inputs.tool }}-test-$TIMESTAMP" >> $GITHUB_ENV
           
           # Enable CloudTrail logging for API calls
           aws cloudtrail create-trail --name "DeploymentAnalysisTrail-$TIMESTAMP" \
@@ -144,14 +155,26 @@ jobs:
         run: |
           cd infrastructure/cloudformation
           
-          # Generate unique stack name
-          sed -i "s/STACK_NAME=\"three-tier-architecture\"/STACK_NAME=\"${{ env.STACK_NAME }}\"/" scripts/deploy.sh
+          # Set the stack name environment variable for later use
+          echo "STACK_NAME=three-tier-architecture" >> $GITHUB_ENV
           
           # Measure deployment time
           echo "DEPLOY_START=$(date +%s)" >> $GITHUB_ENV
           
           # Run the deployment script
-          ./scripts/deploy.sh
+          ./scripts/deploy.sh || {
+            # If deployment fails, capture stack events for debugging
+            echo "Deployment failed. Collecting stack events for debugging..."
+            aws cloudformation describe-stack-events --stack-name three-tier-architecture --region eu-west-1 > ../../results/deployment/cloudformation_stack_events.json
+            
+            # Attempt to clean up failed stack
+            echo "Cleaning up failed stack..."
+            aws cloudformation delete-stack --stack-name three-tier-architecture --region eu-west-1
+            
+            # Record the failure
+            echo "Deployment failed. Check stack events in the artifacts." > ../../results/deployment/cloudformation_deployment_failure.txt
+            exit 1
+          }
           
           echo "DEPLOY_END=$(date +%s)" >> $GITHUB_ENV
           
@@ -164,7 +187,7 @@ jobs:
           cat > ../../results/deployment/cloudformation_deployment_report.json << EOF
           {
             "tool": "cloudformation",
-            "stack_name": "${{ env.STACK_NAME }}",
+            "stack_name": "three-tier-architecture",
             "deploy_time_seconds": $DEPLOY_DURATION,
             "total_time_seconds": $DEPLOY_DURATION,
             "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
