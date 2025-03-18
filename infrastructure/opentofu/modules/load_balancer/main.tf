@@ -2,14 +2,14 @@
 # In this project, it serves as the web tier entry point
 
 resource "aws_lb" "app_alb" {
-  name               = "App-Tier-LB"
+  name               = "Ot-App-Tier-LB"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [var.security_group_ids.alb]
   subnets            = values(var.public_subnet_ids)
   
   tags = {
-    Name        = "OT-App-Tier-LB"
+    Name        = "Ot-App-Tier-LB"
     Environment = "Production"
     Tier        = "Web"
     ManagedBy   = "OpenTofu"
