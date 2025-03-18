@@ -1,5 +1,5 @@
 resource "aws_key_pair" "app_key_pair" {
-  key_name   = "dissertation_key"
+  key_name   = "tf_dissertation_key"
   public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDeVGiH7I+x4vCfR3e7E0havpo/dr2LqO4AmvIrSX4BqKSwZrVbVVA7GF18pPFURaIX3rj6ZI7iWXD2hIVjSHbu55oBou0QrPmc/4CNhO3+3vlOWtcpsfxlLOlDW5tsvRAPHJA5IXdXkPwGYyndXiWVuQsB7gicC+1WIddvXKHMWMyhxuxuFx+/vGRzvZz0R4h9Dq7s+oRO7fjCwefnOMj7yCZUSaKUUZxH9ZlIxuLuxgcBq7scd1N0yAL/Sj0AOOGLEYkln+0cN4d88lFuN6XmBrOt5DWKoqNGuNGLYqWk4EpY4EMZZQ3RbxTAmfLQ83D92/yKgHWI1VMwAP3SK2J1"
 }
 
