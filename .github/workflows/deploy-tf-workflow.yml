@@ -1,0 +1,172 @@
+# .github/workflows/deploy-tf-workflow.yml
+
+name: Terraform Deployment Analysis
+
+on:
+  workflow_call:
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  deploy-terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: terraform
+        
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+          
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Install dependencies
+        run: |
+          pip install boto3 awscli
+          mkdir -p results/deployment
+          
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+          
+      - name: Record start time
+        run: |
+          echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
+          echo "Deployment starting at $(date)"
+      
+      - name: Deploy with Terraform
+        id: terraform-deploy
+        run: |
+          cd infrastructure/terraform
+          
+          # Measure init time
+          INIT_START=$(date +%s)
+          terraform init
+          INIT_END=$(date +%s)
+          
+          # Measure apply time
+          APPLY_START=$(date +%s)
+          terraform apply -auto-approve
+          APPLY_STATUS=$?
+          APPLY_END=$(date +%s)
+          
+          # Calculate times
+          INIT_DURATION=$((INIT_END - INIT_START))
+          APPLY_DURATION=$((APPLY_END - APPLY_START))
+          TOTAL_DURATION=$((APPLY_END - INIT_START))
+          
+          echo "Terraform init time: ${INIT_DURATION}s"
+          echo "Terraform apply time: ${APPLY_DURATION}s"
+          echo "Total deployment time: ${TOTAL_DURATION}s"
+          
+          # Create deployment report
+          mkdir -p ../../results/deployment
+          cat > ../../results/deployment/terraform_deployment_report.json << EOF
+          {
+            "tool": "terraform",
+            "init_time_seconds": $INIT_DURATION,
+            "apply_time_seconds": $APPLY_DURATION,
+            "total_time_seconds": $TOTAL_DURATION,
+            "success": $([ $APPLY_STATUS -eq 0 ] && echo "true" || echo "false"),
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+          
+          # Let the workflow know if this succeeded
+          if [ $APPLY_STATUS -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+          
+          # Record relevant environment variables for API collection
+          echo "TERRAFORM_INIT_TIME=$INIT_DURATION" >> $GITHUB_ENV
+          echo "TERRAFORM_APPLY_TIME=$APPLY_DURATION" >> $GITHUB_ENV
+          echo "TERRAFORM_TOTAL_TIME=$TOTAL_DURATION" >> $GITHUB_ENV
+      
+      - name: Collect API calls for Terraform
+        run: |
+          # Record end time
+          END_TIME=$(date +%s)
+          
+          # Wait for CloudTrail events to be available
+          echo "Waiting for CloudTrail events to be available..."
+          sleep 30
+          
+          # Get CloudTrail events for the deployment
+          aws cloudtrail lookup-events \
+            --lookup-attributes AttributeKey=EventName,AttributeValue=Apply \
+            > results/deployment/terraform_cloudtrail_events.json || true
+          
+          # Update deployment report with API calls
+          python - << EOF
+          import json
+          import os
+          
+          try:
+              # Load CloudTrail events
+              with open('results/deployment/terraform_cloudtrail_events.json', 'r') as f:
+                  events_data = json.load(f)
+              
+              # Count API calls by service
+              service_counts = {}
+              for event in events_data.get('Events', []):
+                  if isinstance(event, dict) and 'CloudTrailEvent' in event:
+                      try:
+                          cloud_trail_event = json.loads(event['CloudTrailEvent'])
+                          event_source = cloud_trail_event.get('eventSource', '')
+                          
+                          # Extract service name
+                          if event_source:
+                              service = event_source.split('.')[0]
+                              if service not in service_counts:
+                                  service_counts[service] = 0
+                              service_counts[service] += 1
+                      except Exception as e:
+                          pass
+              
+              # Calculate total
+              total_calls = sum(service_counts.values())
+              
+              # Load existing report
+              report_file = 'results/deployment/terraform_deployment_report.json'
+              with open(report_file, 'r') as f:
+                  report = json.load(f)
+              
+              # Add API call info
+              report['api_calls'] = {
+                  'total_count': total_calls,
+                  'service_breakdown': service_counts
+              }
+              
+              # Add overall deployment time
+              overall_time = ${{ env.END_TIME }} - ${{ env.START_TIME }}
+              report['overall_deployment_time_seconds'] = overall_time
+              
+              # Save updated report
+              with open(report_file, 'w') as f:
+                  json.dump(report, f, indent=2)
+              
+              print(f"Total API calls for Terraform: {total_calls}")
+              
+          except Exception as e:
+              print(f"Error collecting API calls for Terraform: {e}")
+          EOF
+          
+      - name: Upload Deployment Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-results-terraform
+          path: results/deployment/

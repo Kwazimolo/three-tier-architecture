@@ -1,6 +1,6 @@
 # RDS database instance for the data tier
 resource "aws_db_subnet_group" "data_tier_subnet_group" {
-  name       = "TF-data-tier-subnet-group"
+  name       = "tf-data-tier-subnet-group"
   subnet_ids = values(var.database_subnet_ids)
 
   tags = {

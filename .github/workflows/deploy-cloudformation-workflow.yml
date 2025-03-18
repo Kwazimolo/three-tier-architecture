@@ -1,0 +1,172 @@
+# .github/workflows/deploy-cloudformation-workflow.yml
+
+name: CloudFormation Deployment Analysis
+
+on:
+  workflow_call:
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  deploy-cloudformation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: terraform
+        
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+          
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Install dependencies
+        run: |
+          pip install boto3 awscli
+          mkdir -p results/deployment
+          
+      - name: Record start time
+        run: |
+          echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
+          echo "Deployment starting at $(date)"
+      
+      - name: Deploy with CloudFormation
+        id: cloudformation-deploy
+        run: |
+          cd infrastructure/cloudformation
+          
+          # Set the stack name environment variable for later use
+          STACK_NAME="three-tier-architecture"
+          echo "STACK_NAME=$STACK_NAME" >> $GITHUB_ENV
+          
+          # Measure deployment time
+          DEPLOY_START=$(date +%s)
+          
+          # Run the deployment script
+          ./scripts/deploy.sh
+          DEPLOY_STATUS=$?
+          
+          DEPLOY_END=$(date +%s)
+          
+          # Calculate time
+          DEPLOY_DURATION=$((DEPLOY_END - DEPLOY_START))
+          
+          echo "CloudFormation deployment time: ${DEPLOY_DURATION}s"
+          
+          # If deployment failed, capture stack events for debugging
+          if [ $DEPLOY_STATUS -ne 0 ]; then
+            echo "Deployment failed. Collecting stack events for debugging..."
+            aws cloudformation describe-stack-events --stack-name $STACK_NAME --region eu-west-1 > ../../results/deployment/cloudformation_stack_events.json || true
+            
+            echo "Deployment failed. Check stack events in the artifacts." > ../../results/deployment/cloudformation_deployment_failure.txt
+          fi
+          
+          # Create deployment report
+          mkdir -p ../../results/deployment
+          cat > ../../results/deployment/cloudformation_deployment_report.json << EOF
+          {
+            "tool": "cloudformation",
+            "stack_name": "$STACK_NAME",
+            "deploy_time_seconds": $DEPLOY_DURATION,
+            "total_time_seconds": $DEPLOY_DURATION,
+            "success": $([ $DEPLOY_STATUS -eq 0 ] && echo "true" || echo "false"),
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+          
+          # Let the workflow know if this succeeded
+          if [ $DEPLOY_STATUS -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+          
+          # Record relevant environment variables for API collection
+          echo "CLOUDFORMATION_DEPLOY_TIME=$DEPLOY_DURATION" >> $GITHUB_ENV
+      
+      - name: Collect API calls for CloudFormation
+        run: |
+          # Record end time
+          END_TIME=$(date +%s)
+          echo "END_TIME=$END_TIME" >> $GITHUB_ENV
+          
+          # Wait for CloudTrail events to be available
+          echo "Waiting for CloudTrail events to be available..."
+          sleep 30
+          
+          # Get CloudTrail events for the deployment
+          aws cloudtrail lookup-events \
+            --lookup-attributes AttributeKey=ResourceName,AttributeValue=three-tier-architecture \
+            > results/deployment/cloudformation_cloudtrail_events.json || true
+          
+          # Update deployment report with API calls
+          python - << EOF
+          import json
+          import os
+          
+          try:
+              # Load CloudTrail events
+              with open('results/deployment/cloudformation_cloudtrail_events.json', 'r') as f:
+                  events_data = json.load(f)
+              
+              # Count API calls by service
+              service_counts = {}
+              for event in events_data.get('Events', []):
+                  if isinstance(event, dict) and 'CloudTrailEvent' in event:
+                      try:
+                          cloud_trail_event = json.loads(event['CloudTrailEvent'])
+                          event_source = cloud_trail_event.get('eventSource', '')
+                          
+                          # Extract service name
+                          if event_source:
+                              service = event_source.split('.')[0]
+                              if service not in service_counts:
+                                  service_counts[service] = 0
+                              service_counts[service] += 1
+                      except Exception as e:
+                          pass
+              
+              # Calculate total
+              total_calls = sum(service_counts.values())
+              
+              # Load existing report
+              report_file = 'results/deployment/cloudformation_deployment_report.json'
+              with open(report_file, 'r') as f:
+                  report = json.load(f)
+              
+              # Add API call info
+              report['api_calls'] = {
+                  'total_count': total_calls,
+                  'service_breakdown': service_counts
+              }
+              
+              # Add overall deployment time
+              overall_time = ${{ env.END_TIME }} - ${{ env.START_TIME }}
+              report['overall_deployment_time_seconds'] = overall_time
+              
+              # Save updated report
+              with open(report_file, 'w') as f:
+                  json.dump(report, f, indent=2)
+              
+              print(f"Total API calls for CloudFormation: {total_calls}")
+              
+          except Exception as e:
+              print(f"Error collecting API calls for CloudFormation: {e}")
+          EOF
+          
+      - name: Upload Deployment Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-results-cloudformation
+          path: results/deployment/
