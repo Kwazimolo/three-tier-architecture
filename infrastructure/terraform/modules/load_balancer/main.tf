@@ -2,7 +2,7 @@
 # In this project, it serves as the web tier entry point
 
 resource "aws_lb" "app_alb" {
-  name               = "Ot-App-Tier-LB"
+  name               = "Tf-App-Tier-LB"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [var.security_group_ids.alb]
@@ -19,7 +19,7 @@ resource "aws_lb" "app_alb" {
 # Load balancer target group
 
 resource "aws_lb_target_group" "app_lb_tg" {
-  name        = "App-Tier-tg"
+  name        = "Tf-App-Tier-tg"
   port        = 80
   protocol    = "HTTP"
   target_type = "instance"
@@ -41,7 +41,7 @@ resource "aws_lb_target_group" "app_lb_tg" {
   }
   
   tags = {
-    Name        = "App-Tier-tg"
+    Name        = "Tf-App-Tier-tg"
     Environment = "Production"
     Tier        = "Web"
     ManagedBy   = "Terraform"
@@ -61,7 +61,7 @@ resource "aws_lb_listener" "app_listener" {
   }
   
   tags = {
-    Name        = "App-Tier-HTTP-Listener"
+    Name        = "Tf-App-Tier-HTTP-Listener"
     Environment = "Production"
     Tier        = "Web"
     ManagedBy   = "Terraform"
