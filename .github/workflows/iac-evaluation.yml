@@ -56,8 +56,6 @@ jobs:
 
   terraform-deployment:
     needs: cost
-    if: inputs.run_all || inputs.run_terraform
-
     # strategy:
     #   matrix:
     #     tool: [terraform, cloudformation, opentofu]
@@ -70,7 +68,6 @@ jobs:
 
   opentofu-deployment:
     needs: cost
-    if: inputs.run_all || inputs.run_opentofu
     # strategy:
     #   matrix:
     #     tool: [terraform, cloudformation, opentofu]
@@ -83,7 +80,6 @@ jobs:
 
   cloudformation-deployment:
     needs: cost
-    if: inputs.run_all || inputs.run_cloudformation
     # strategy:
     #   matrix:
     #     tool: [terraform, cloudformation, opentofu]
