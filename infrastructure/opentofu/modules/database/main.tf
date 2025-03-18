@@ -1,6 +1,6 @@
 # RDS database instance for the data tier
 resource "aws_db_subnet_group" "data_tier_subnet_group" {
-  name       = "data-tier-subnet-group"
+  name       = "OT-data-tier-subnet-group"
   subnet_ids = values(var.database_subnet_ids)
 
   tags = {
@@ -15,7 +15,7 @@ resource "aws_db_subnet_group" "data_tier_subnet_group" {
 #  Create RDS instances
 resource "aws_db_instance" "data_tier_db" {
   count                      = 2
-  identifier                 = "data-tier-db-${count.index + 1}"
+  identifier                 = "ot-data-tier-db-${count.index + 1}"
   allocated_storage          = 10
   db_name                    = "data_tier_db"
   engine                     = "mysql"
