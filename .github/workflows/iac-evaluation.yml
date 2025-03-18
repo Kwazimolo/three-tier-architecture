@@ -60,8 +60,6 @@ jobs:
       matrix:
         tool: [terraform, cloudformation, opentofu]
     uses: ./.github/workflows/deploy-tf-workflow.yml
-    with:
-      tool: ${{ matrix.tool }}
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -72,8 +70,6 @@ jobs:
       matrix:
         tool: [terraform, cloudformation, opentofu]
     uses: ./.github/workflows/deploy-opentofu-workflow.yml
-    with:
-      tool: ${{ matrix.tool }}
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -84,8 +80,6 @@ jobs:
       matrix:
         tool: [terraform, cloudformation, opentofu]
     uses: ./.github/workflows/deploy-cloudformation-workflow.yml
-    with:
-      tool: ${{ matrix.tool }}
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
