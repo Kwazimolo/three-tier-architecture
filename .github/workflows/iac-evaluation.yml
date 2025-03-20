@@ -4,16 +4,11 @@ name: IaC Tools Evaluation
 
 on:
   workflow_dispatch:  # Manual trigger
-  push:
-    branches:
-      - '**'  # This will match all branches
+  # push:
+  #   branches:
+  #     - '**'  # This will match all branches
 
 jobs:
-  # setup:
-  #   uses: ./.github/workflows/setup-workflow.yml
-  #   secrets:
-  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   complexity:
     # needs: setup

@@ -30,76 +30,76 @@ jobs:
       
       ### Complexity    
       - name: Download complexity artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: complexity-results-terraform
           path: results/complexity/
           
       - name: Download complexity artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: complexity-results-cloudformation
           path: results/complexity/
           
       - name: Download complexity artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: complexity-results-opentofu
           path: results/complexity/
       
       ### Security 
       - name: Download security artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: security-results-terraform
           path: results/security/
           
       - name: Download security artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: security-results-cloudformation
           path: results/security/
           
       - name: Download security artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: security-results-opentofu
           path: results/security/
       
       ### Cost    
       - name: Download cost artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: cost-results-terraform
           path: results/cost/
           
       - name: Download cost artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: cost-results-cloudformation
           path: results/cost/
           
       - name: Download cost artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: cost-results-opentofu
           path: results/cost/
       
       ### Deployment
       - name: Download deployment artifacts - Terraform
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: deployment-results-terraform
           path: results/deployment/
           
       - name: Download deployment artifacts - CloudFormation
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: deployment-results-cloudformation
           path: results/deployment/
           
       - name: Download deployment artifacts - OpenTofu
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: deployment-results-opentofu
           path: results/deployment/
