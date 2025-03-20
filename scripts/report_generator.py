@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-Simplified report generator for IaC tools evaluation
+Report generator for IaC tools evaluation - using only real data
 """
 
 import argparse
@@ -29,7 +28,7 @@ def load_json_file(file_path, default=None):
         return default
 
 def generate_report(complexity_dir, security_dir, deployment_dir, cost_dir, output_dir):
-    """Generate a simplified report comparing IaC tools"""
+    """Generate a report comparing IaC tools using only real data"""
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
     
@@ -95,6 +94,10 @@ def generate_report(complexity_dir, security_dir, deployment_dir, cost_dir, outp
                         scores[tool] = value if isinstance(value, (int, float)) else 0
                     else:
                         scores[tool] = report["results"][tool][category].get(score_key, 0)
+            
+            # If no score was found, default to 0
+            if tool not in scores:
+                scores[tool] = 0
         
         # Sort tools by score (higher is better)
         sorted_tools = sorted(scores.items(), key=lambda x: x[1], reverse=True)
@@ -192,6 +195,10 @@ def generate_overall_ranking_chart(report, charts_dir):
         plt.ylabel('Tool', fontsize=14)
         plt.grid(axis='x', linestyle='--', alpha=0.7)
         
+        # Set reasonable x-axis limits
+        max_score = max(scores) if scores else 100
+        plt.xlim(0, max_score * 1.1 or 100)
+        
         plt.tight_layout()
         plt.savefig(os.path.join(charts_dir, 'overall_ranking.png'))
         plt.close()
@@ -226,6 +233,10 @@ def generate_category_scores_chart(report, charts_dir):
         plt.xticks(rotation=45, ha='right')
         plt.grid(axis='y', linestyle='--', alpha=0.7)
         plt.legend(title='Tool', fontsize=12)
+        
+        # Set reasonable y-axis limits
+        max_score = df.values.max() if not df.empty else 0
+        plt.ylim(0, max_score * 1.1 or 100)
         
         plt.tight_layout()
         plt.savefig(os.path.join(charts_dir, 'category_scores.png'))
@@ -263,11 +274,19 @@ def generate_cost_comparison(report, charts_dir):
         ax1.set_ylabel('USD ($)')
         ax1.grid(axis='y', linestyle='--', alpha=0.7)
         
+        # Set reasonable y-axis limits
+        max_cost = max(monthly_costs) if monthly_costs else 0
+        ax1.set_ylim(0, max_cost * 1.1 or 100)
+        
         # Cost optimization opportunities chart
         ax2.bar(tool_names, opportunity_counts, color='lightcoral')
         ax2.set_title('Cost Optimization Opportunities')
         ax2.set_ylabel('Count')
         ax2.grid(axis='y', linestyle='--', alpha=0.7)
+        
+        # Set reasonable y-axis limits
+        max_opps = max(opportunity_counts) if opportunity_counts else 0
+        ax2.set_ylim(0, max_opps * 1.1 or 5)
         
         plt.tight_layout()
         plt.savefig(os.path.join(charts_dir, 'cost_comparison.png'))

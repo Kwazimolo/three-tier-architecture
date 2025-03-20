@@ -125,10 +125,10 @@ jobs:
         run: |
           # Generate the final comparison report
           python scripts/report_generator.py \
-            --complexity-dir results/complexity \
-            --security-dir results/security \
-            --deployment-dir results/deployment \
-            --cost-dir results/cost \
+            --complexity-dir results/ \
+            --security-dir results/ \
+            --deployment-dir results/ \
+            --cost-dir results/ \
             --output-dir results/final-report
           
       - name: Upload Final Report
