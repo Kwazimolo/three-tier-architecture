@@ -4,12 +4,11 @@ name: IaC Tools Evaluation
 
 on:
   workflow_dispatch:  # Manual trigger
-  # push:
-  #   branches:
-  #     - '**'  # This will match all branches
+  push:
+    branches:
+      - '**'  # This will match all branches
 
 jobs:
-
   complexity:
     # needs: setup
     strategy:
