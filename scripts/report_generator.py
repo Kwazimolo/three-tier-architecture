@@ -28,7 +28,7 @@ def load_json_file(file_path, default=None):
         logger.error(f"Error reading file {file_path}: {str(e)}")
         return default
 
-def generate_report(complexity_dir, security_dir, deployment_dir, performance_dir, cost_dir, output_dir):
+def generate_report(complexity_dir, security_dir, deployment_dir, cost_dir, output_dir):
     """Generate a simplified report comparing IaC tools"""
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
@@ -60,9 +60,6 @@ def generate_report(complexity_dir, security_dir, deployment_dir, performance_di
         
         report["results"][tool]["deployment"] = load_json_file(
             os.path.join(deployment_dir, tool, "deployment_report.json"), {})
-        
-        report["results"][tool]["performance"] = load_json_file(
-            os.path.join(performance_dir, tool, "performance_report.json"), {})
         
         report["results"][tool]["cost"] = load_json_file(
             os.path.join(cost_dir, tool, "cost_report.json"), {})
@@ -355,7 +352,6 @@ if __name__ == "__main__":
         args.complexity_dir,
         args.security_dir,
         args.deployment_dir,
-        args.performance_dir,
         args.cost_dir,
         args.output_dir
     )
