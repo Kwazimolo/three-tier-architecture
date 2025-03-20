@@ -60,19 +60,19 @@ jobs:
       - name: Download security artifacts - Terraform
         uses: actions/download-artifact@v4
         with:
-          name: security-results-terraform
+          name: security-reports-terraform
           path: results/security/
           
       - name: Download security artifacts - CloudFormation
         uses: actions/download-artifact@v4
         with:
-          name: security-results-cloudformation
+          name: security-reports-cloudformation
           path: results/security/
           
       - name: Download security artifacts - OpenTofu
         uses: actions/download-artifact@v4
         with:
-          name: security-results-opentofu
+          name: security-reports-opentofu
           path: results/security/
       
       ### Cost    
