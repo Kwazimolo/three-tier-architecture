@@ -35,7 +35,7 @@ def generate_report(complexity_dir, security_dir, deployment_dir, cost_dir, outp
     
     # Define tools and categories
     tools = ["terraform", "cloudformation", "opentofu"]
-    categories = ["complexity", "security", "deployment", "performance", "cost"]
+    categories = ["complexity", "security", "deployment", "cost"]
     
     # Initialize report structure
     report = {
@@ -69,7 +69,6 @@ def generate_report(complexity_dir, security_dir, deployment_dir, cost_dir, outp
         "complexity": "complexity_score",
         "security": "overall.security_score",
         "deployment": "overall.efficiency_score",
-        "performance": "summary.performance_score",
         "cost": "cost_efficiency_score"
     }
     
@@ -110,16 +109,15 @@ def generate_report(complexity_dir, security_dir, deployment_dir, cost_dir, outp
     # Generate overall ranking
     weights = {
         "complexity": 0.15,
-        "security": 0.25,
-        "deployment": 0.25,
-        "performance": 0.2,
-        "cost": 0.15
+        "security": 0.35,
+        "deployment": 0.30,
+        "cost": 0.20
     }
     
     # Calculate weighted scores for overall ranking
     overall_scores = {}
     for category, category_rankings in report["rankings"].items():
-        weight = weights.get(category, 0.2)
+        weight = weights.get(category, 0.25)
         for tool, rank_data in category_rankings.items():
             if tool not in overall_scores:
                 overall_scores[tool] = 0
@@ -165,10 +163,7 @@ def generate_charts(report, charts_dir):
         # 2. Category scores chart
         generate_category_scores_chart(report, charts_dir)
         
-        # 3. Performance comparison
-        generate_performance_comparison(report, charts_dir)
-        
-        # 4. Cost comparison
+        # 3. Cost comparison
         generate_cost_comparison(report, charts_dir)
     except Exception as e:
         logger.error(f"Error generating charts: {str(e)}")
@@ -238,63 +233,6 @@ def generate_category_scores_chart(report, charts_dir):
     except Exception as e:
         logger.error(f"Error generating category scores chart: {str(e)}")
 
-def generate_performance_comparison(report, charts_dir):
-    """Generate chart comparing performance metrics"""
-    try:
-        tools = report["tools_compared"]
-        
-        # Extract performance metrics
-        execution_times = []
-        cpu_peaks = []
-        memory_peaks = []
-        
-        for tool in tools:
-            if "performance" in report["results"].get(tool, {}) and report["results"][tool]["performance"]:
-                perf_data = report["results"][tool]["performance"]
-                
-                if "summary" in perf_data:
-                    execution_times.append(perf_data["summary"].get("avg_duration", 0))
-                    cpu_peaks.append(perf_data["summary"].get("avg_cpu_peak", 0))
-                    memory_peaks.append(perf_data["summary"].get("avg_memory_peak", 0))
-                else:
-                    execution_times.append(0)
-                    cpu_peaks.append(0)
-                    memory_peaks.append(0)
-            else:
-                execution_times.append(0)
-                cpu_peaks.append(0)
-                memory_peaks.append(0)
-        
-        # Create bar charts
-        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 12))
-        
-        # Format tool names
-        tool_names = [t.capitalize() for t in tools]
-        
-        # Execution time chart
-        ax1.bar(tool_names, execution_times, color='skyblue')
-        ax1.set_title('Average Operation Execution Time')
-        ax1.set_ylabel('Seconds')
-        ax1.grid(axis='y', linestyle='--', alpha=0.7)
-        
-        # CPU peak chart
-        ax2.bar(tool_names, cpu_peaks, color='lightcoral')
-        ax2.set_title('Peak CPU Usage')
-        ax2.set_ylabel('CPU %')
-        ax2.grid(axis='y', linestyle='--', alpha=0.7)
-        
-        # Memory peak chart
-        ax3.bar(tool_names, memory_peaks, color='lightgreen')
-        ax3.set_title('Peak Memory Usage')
-        ax3.set_ylabel('Memory (MB)')
-        ax3.grid(axis='y', linestyle='--', alpha=0.7)
-        
-        plt.tight_layout()
-        plt.savefig(os.path.join(charts_dir, 'performance_comparison.png'))
-        plt.close()
-    except Exception as e:
-        logger.error(f"Error generating performance comparison chart: {str(e)}")
-
 def generate_cost_comparison(report, charts_dir):
     """Generate a chart comparing cost metrics"""
     try:
@@ -342,7 +280,6 @@ if __name__ == "__main__":
     parser.add_argument("--complexity-dir", required=True, help="Directory containing complexity results")
     parser.add_argument("--security-dir", required=True, help="Directory containing security results")
     parser.add_argument("--deployment-dir", required=True, help="Directory containing deployment results")
-    parser.add_argument("--performance-dir", required=True, help="Directory containing performance results")
     parser.add_argument("--cost-dir", required=True, help="Directory containing cost results")
     parser.add_argument("--output-dir", required=True, help="Directory to save the final report")
     
