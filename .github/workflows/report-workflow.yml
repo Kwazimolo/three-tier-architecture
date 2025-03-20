@@ -27,59 +27,68 @@ jobs:
       - name: Install report generation dependencies
         run: |
           pip install jinja2 pandas matplotlib markdown pygments
-      
+          
+      # Debug: List complexity files
+      - name: List complexity files
+        run: |
+          echo "===== Complexity Directory Structure ====="
+          find results/complexity -type d | sort
+          
+          echo "\n===== Terraform Complexity Files ====="
+          ls -la results/complexity/ || echo "No terraform files found"
+
       ### Complexity    
-      - name: Download complexity artifacts
+      - name: Download complexity artifacts - Terraform
         uses: actions/download-artifact@v4
         with:
           name: complexity-results-terraform
           path: results/complexity/
           
-      - name: Download complexity artifacts
+      - name: Download complexity artifacts - CloudFormation
         uses: actions/download-artifact@v4
         with:
           name: complexity-results-cloudformation
           path: results/complexity/
           
-      - name: Download complexity artifacts
+      - name: Download complexity artifacts - OpenTofu
         uses: actions/download-artifact@v4
         with:
           name: complexity-results-opentofu
           path: results/complexity/
       
       ### Security 
-      - name: Download security artifacts
+      - name: Download security artifacts - Terraform
         uses: actions/download-artifact@v4
         with:
           name: security-results-terraform
           path: results/security/
           
-      - name: Download security artifacts
+      - name: Download security artifacts - CloudFormation
         uses: actions/download-artifact@v4
         with:
           name: security-results-cloudformation
           path: results/security/
           
-      - name: Download security artifacts
+      - name: Download security artifacts - OpenTofu
         uses: actions/download-artifact@v4
         with:
           name: security-results-opentofu
           path: results/security/
       
       ### Cost    
-      - name: Download cost artifacts
+      - name: Download cost artifacts - Terraform
         uses: actions/download-artifact@v4
         with:
           name: cost-results-terraform
           path: results/cost/
           
-      - name: Download cost artifacts
+      - name: Download cost artifacts - CloudFormation
         uses: actions/download-artifact@v4
         with:
           name: cost-results-cloudformation
           path: results/cost/
           
-      - name: Download cost artifacts
+      - name: Download cost artifacts - OpenTofu
         uses: actions/download-artifact@v4
         with:
           name: cost-results-opentofu
