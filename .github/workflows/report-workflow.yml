@@ -9,8 +9,6 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
-      GITHUB_TOKEN:
-        required: true
 
 jobs:
   generate-report:
@@ -18,6 +16,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          ref: terraform
         
       - name: Setup Python
         uses: actions/setup-python@v3
