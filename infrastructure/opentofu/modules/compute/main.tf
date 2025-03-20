@@ -7,7 +7,7 @@ resource "aws_instance" "app_tier_ec2" {
   count                  = 2
   ami                    = "ami-0fed63ea358539e44"
   instance_type          = "t2.micro"
-  key_name               = "dissertation_key"
+  key_name               = "ot_dissertation_key"
   subnet_id              = var.app_subnet_ids.app[count.index]
   vpc_security_group_ids = [var.security_group_ids.app]
   user_data              = file("${path.module}/services.sh")
@@ -27,7 +27,7 @@ resource "aws_instance" "bastion_ec2" {
   count                       = 1
   ami                         = "ami-0fed63ea358539e44"
   instance_type               = "t2.micro"
-  key_name                    = "dissertation_key"
+  key_name                    = "ot_dissertation_key"
   subnet_id                   = var.app_subnet_ids.bastion[0]
   associate_public_ip_address = true
   vpc_security_group_ids      = [var.security_group_ids.bastion]
