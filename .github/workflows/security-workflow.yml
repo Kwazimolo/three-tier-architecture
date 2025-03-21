@@ -39,7 +39,6 @@ jobs:
       run: |
         # Install tools
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
     
     - name: Determine Checkov Checks
       id: select-checks
