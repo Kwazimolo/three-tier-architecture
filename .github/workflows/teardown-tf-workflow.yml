@@ -1,0 +1,100 @@
+# .github/workflows/teardown-workflow.yml
+
+name: Terraform Teardown
+
+on:
+  workflow_call:
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  teardown-terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: terraform
+          
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+          
+      - name: Install dependencies
+        run: |
+            mkdir -p results/teardown
+
+      - name: Wait 5 minutes before teardown
+        run: |
+          echo "Waiting 5 minutes before starting Terraform teardown..."
+          echo "Start time: $(date)"
+          sleep 300
+          echo "End time: $(date)"
+          
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.6.0"
+          
+      - name: Record start time
+        run: |
+          echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
+          echo "Teardown starting at $(date)"
+      
+      - name: Teardown with Terraform
+        id: terraform-teardown
+        run: |
+          cd infrastructure/terraform
+          
+          # Measure init time
+          INIT_START=$(date +%s)
+          terraform init
+          INIT_END=$(date +%s)
+          
+          # Measure destroy time
+          DESTROY_START=$(date +%s)
+          terraform destroy -auto-approve
+          DESTROY_STATUS=$?
+          DESTROY_END=$(date +%s)
+          
+          # Calculate times
+          INIT_DURATION=$((INIT_END - INIT_START))
+          DESTROY_DURATION=$((DESTROY_END - DESTROY_START))
+          TOTAL_DURATION=$((DESTROY_END - INIT_START))
+          
+          echo "Terraform init time: ${INIT_DURATION}s"
+          echo "Terraform destroy time: ${DESTROY_DURATION}s"
+          echo "Total teardown time: ${TOTAL_DURATION}s"
+          
+          # Create teardown report
+          mkdir -p ../../results/teardown
+          cat > ../../results/teardown/terraform_teardown_report.json << EOF
+          {
+            "tool": "terraform",
+            "init_time_seconds": $INIT_DURATION,
+            "destroy_time_seconds": $DESTROY_DURATION,
+            "total_time_seconds": $TOTAL_DURATION,
+            "success": $([ $DESTROY_STATUS -eq 0 ] && echo "true" || echo "false"),
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "overall_teardown_time_seconds": $(($(date +%s) - ${{ env.START_TIME }}))
+          }
+          EOF
+          
+          # Let the workflow know if this succeeded
+          if [ $DESTROY_STATUS -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Upload Teardown Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: teardown-results-terraform
+          path: results/teardown/

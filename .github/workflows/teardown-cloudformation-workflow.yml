@@ -1,0 +1,95 @@
+# .github/workflows/teardown-cloudformation-workflow.yml
+
+name: CloudFormation Teardown
+
+on:
+  workflow_call:
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  teardown-cloudformation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: terraform
+          
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Install dependencies
+        run: |
+          pip install awscli
+          mkdir -p results/teardown
+
+      - name: Wait 5 minutes before teardown
+        run: |
+          echo "Waiting 5 minutes before starting CloudFormation teardown..."
+          echo "Start time: $(date)"
+          sleep 300
+          echo "End time: $(date)"
+          
+      - name: Record start time
+        run: |
+          echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
+          echo "Teardown starting at $(date)"
+      
+      - name: Teardown with CloudFormation
+        id: cloudformation-teardown
+        run: |
+          cd infrastructure/cloudformation
+          
+          # Set the stack name environment variable for later use
+          STACK_NAME="three-tier-architecture"
+          echo "STACK_NAME=$STACK_NAME" >> $GITHUB_ENV
+          
+          # Measure teardown time
+          DESTROY_START=$(date +%s)
+          
+          # Run the destroy script
+          ./scripts/deploy.sh destroy
+          DESTROY_STATUS=$?
+          
+          DESTROY_END=$(date +%s)
+          
+          # Calculate time
+          DESTROY_DURATION=$((DESTROY_END - DESTROY_START))
+          OVERALL_DURATION=$((DESTROY_END - ${{ env.START_TIME }}))
+          
+          echo "CloudFormation teardown time: ${DESTROY_DURATION}s"
+          echo "Overall process time: ${OVERALL_DURATION}s"
+          
+          # Create teardown report
+          mkdir -p ../../results/teardown
+          cat > ../../results/teardown/cloudformation_teardown_report.json << EOF
+          {
+            "tool": "cloudformation",
+            "stack_name": "$STACK_NAME",
+            "destroy_time_seconds": $DESTROY_DURATION,
+            "overall_teardown_time_seconds": $OVERALL_DURATION,
+            "success": $([ $DESTROY_STATUS -eq 0 ] && echo "true" || echo "false"),
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+          
+          # Let the workflow know if this succeeded
+          if [ $DESTROY_STATUS -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Upload Teardown Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: teardown-results-cloudformation
+          path: results/teardown/

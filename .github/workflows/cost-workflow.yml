@@ -35,18 +35,15 @@ jobs:
       - name: Create Results Directory
         run: mkdir -p results/cost
       
-      #################################
       ## INFRACOST SETUP
-      #################################
       - name: Setup Infracost
         if: (github.event_name == 'pull_request' && (steps.determine-tool.outputs.tool == 'terraform' || steps.determine-tool.outputs.tool == 'opentofu')) || (github.event_name != 'pull_request' && (inputs.tool == 'terraform' || inputs.tool == 'opentofu'))
         uses: infracost/actions/setup@v3
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
       
-      #################################
+
       ## CLOUDFORMATION SETUP
-      #################################
       - name: Setup Python for CloudFormation
         if: (github.event_name == 'pull_request' && steps.determine-tool.outputs.tool == 'cloudformation') || (github.event_name != 'pull_request' && inputs.tool == 'cloudformation')
         uses: actions/setup-python@v3
@@ -65,9 +62,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-1
       
-      #################################
+
       ## WORKFLOW CALL ANALYSIS
-      #################################
       - name: Run Infracost for workflow call
         if: github.event_name != 'pull_request' && (inputs.tool == 'terraform' || inputs.tool == 'opentofu')
         run: |
@@ -84,9 +80,7 @@ jobs:
             --template templates/main.yml \
             --output ../../results/cost/cloudformation_cost_analysis.json
       
-      #################################
       ## PR-SPECIFIC ANALYSIS
-      #################################
       - name: Determine IaC Tool from PR
         id: determine-tool
         if: github.event_name == 'pull_request'
@@ -135,9 +129,6 @@ jobs:
             --pull-request ${{ github.event.pull_request.number }} \
             --behavior update
       
-      #################################
-      ## ARTIFACT UPLOAD
-      #################################
       - name: Upload Cost Analysis Results
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4

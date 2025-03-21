@@ -67,16 +67,23 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-  report:
-    needs: [complexity, security, cost, terraform-deployment, opentofu-deployment, cloudformation-deployment ]
-    uses: ./.github/workflows/report-workflow.yml
+  terraform-teardown:
+    needs: [complexity, security,cost, terraform-deployment]
+    uses: ./.github/workflows/teardown-tf-workflow.yml
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-  # teardown:
-  #   needs: [complexity, security,cost, terraform-deployment, opentofu-deployment, cloudformation-deployment,report]
-  #   uses: ./.github/workflows/teardown-workflow.yml
-  #   secrets:
-  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  opentofu-teardown:
+    needs: [complexity, security,cost,opentofu-deployment]
+    uses: ./.github/workflows/teardown-opentofu-workflow.yml
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  cloudformation-teardown:
+    needs: [complexity, security,cost,cloudformation-deployment]
+    uses: ./.github/workflows/teardown-cloudformation-workflow.yml
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
