@@ -1,0 +1,8 @@
+{
+  "tool": "opentofu",
+  "init_time_seconds": 6,
+  "destroy_time_seconds": 324,
+  "total_time_seconds": 330,
+  "success": true,
+  "overall_teardown_time_seconds": 330
+}

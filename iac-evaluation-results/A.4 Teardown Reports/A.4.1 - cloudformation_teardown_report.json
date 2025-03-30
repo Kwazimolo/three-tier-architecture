@@ -1,0 +1,7 @@
+{
+  "tool": "cloudformation",
+  "stack_name": "three-tier-architecture",
+  "destroy_time_seconds": 704,
+  "overall_teardown_time_seconds": 704,
+  "success": true
+}

@@ -1,0 +1,7 @@
+{
+  "tool": "terraform",
+  "nodes": 54,
+  "edges": 54,
+  "avg_degree": 2.0,
+  "complexity_score": 64.0
+}

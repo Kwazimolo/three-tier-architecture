@@ -1,0 +1,7 @@
+{
+  "tool": "terraform",
+  "init_time_seconds": 6,
+  "apply_time_seconds": 370,
+  "total_time_seconds": 376,
+  "success": true
+}

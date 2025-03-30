@@ -1,0 +1,7 @@
+{
+  "tool": "opentofu",
+  "init_time_seconds": 7,
+  "apply_time_seconds": 369,
+  "total_time_seconds": 376,
+  "success": true
+}

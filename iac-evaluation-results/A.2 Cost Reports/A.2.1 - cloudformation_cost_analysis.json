@@ -1,0 +1,49 @@
+{
+  "resources": {
+    "EC2Instances": {
+      "resource_type": "AWS::EC2::Instance",
+      "count": 3,
+      "hourly_rate": 0.0126,
+      "monthly_cost": 27.594
+    },
+    "LoadBalancer": {
+      "resource_type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+      "count": 1,
+      "hourly_rate": 0.0225,
+      "monthly_cost": 16.425
+    },
+    "NATGateway": {
+      "resource_type": "AWS::EC2::NatGateway",
+      "count": 4,
+      "hourly_rate": 0.045,
+      "monthly_cost": 131.4
+    },
+    "ElasticIP": {
+      "resource_type": "AWS::EC2::EIP",
+      "count": 4,
+      "hourly_rate": 0.005,
+      "monthly_cost": 14.6
+    },
+    "RDSInstance": {
+      "resource_type": "AWS::RDS::DBInstance",
+      "count": 1,
+      "hourly_rate": 0.018,
+      "monthly_cost": 13.139999999999999
+    }
+  },
+  "monthly_cost_estimate": 203.159,
+  "resource_breakdown": {
+    "EC2": 42.194,
+    "ElasticLoadBalancingV2": 16.425,
+    "VPC": 131.4,
+    "RDS": 13.139999999999999
+  },
+  "optimisation_opportunities": [
+    {
+      "resource_type": "AWS::EC2::NatGateway",
+      "monthly_cost": 131.4,
+      "suggestion": "Consider reducing the number of NAT Gateways for non-production environments",
+      "estimated_savings": 65.7
+    }
+  ]
+}

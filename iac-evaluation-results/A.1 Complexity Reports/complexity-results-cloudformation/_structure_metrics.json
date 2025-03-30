@@ -1,0 +1,33 @@
+{
+  "tool": "cloudformation",
+  "template_count": 6,
+  "total_resources": 55,
+  "unique_resource_types": 19,
+  "parameter_count": 33,
+  "output_count": 25,
+  "mapping_count": 0,
+  "condition_count": 0,
+  "nested_stack_count": 5,
+  "resource_types": {
+    "AWS::EC2::SecurityGroup": 5,
+    "AWS::EC2::SecurityGroupIngress": 1,
+    "AWS::ElasticLoadBalancingV2::LoadBalancer": 1,
+    "AWS::ElasticLoadBalancingV2::TargetGroup": 1,
+    "AWS::ElasticLoadBalancingV2::Listener": 1,
+    "AWS::RDS::DBSubnetGroup": 1,
+    "AWS::RDS::DBInstance": 1,
+    "AWS::CloudFormation::Stack": 5,
+    "AWS::EC2::KeyPair": 1,
+    "AWS::EC2::Instance": 3,
+    "AWS::EC2::VPC": 1,
+    "AWS::EC2::InternetGateway": 1,
+    "AWS::EC2::VPCGatewayAttachment": 1,
+    "AWS::EC2::Subnet": 6,
+    "AWS::EC2::EIP": 4,
+    "AWS::EC2::NatGateway": 4,
+    "AWS::EC2::RouteTable": 6,
+    "AWS::EC2::Route": 6,
+    "AWS::EC2::SubnetRouteTableAssociation": 6
+  },
+  "complexity_score": 97.6
+}

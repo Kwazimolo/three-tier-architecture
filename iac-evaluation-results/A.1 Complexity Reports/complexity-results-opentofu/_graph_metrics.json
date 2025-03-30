@@ -1,0 +1,7 @@
+{
+  "tool": "opentofu",
+  "nodes": 74,
+  "edges": 73,
+  "avg_degree": 1.97,
+  "complexity_score": 83.26
+}

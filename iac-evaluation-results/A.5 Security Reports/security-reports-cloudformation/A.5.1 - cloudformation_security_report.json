@@ -1,0 +1,33 @@
+{
+  "tool": "cloudformation",
+  "summary": {
+    "total_checks": 21,
+    "passed_checks": 20,
+    "failed_checks": 1,
+    "skipped_checks": 0,
+    "parsing_errors": 0,
+    "resource_count": 55,
+    "checkov_version": "3.2.390"
+  },
+  "security_assessment": {
+    "pass_percentage": 95.24,
+    "security_score": 95.24,
+    "total_resources": 55
+  },
+  "failure_analysis": {
+    "total_failures": 1,
+    "failure_categories": {
+      "Ensure": 1
+    },
+    "detailed_failures": [
+      {
+        "check_id": "CKV_AWS_2",
+        "bc_check_id": "BC_AWS_NETWORKING_29",
+        "check_name": "Ensure ALB protocol is HTTPS",
+        "resource": "AWS::ElasticLoadBalancingV2::Listener.AppListener",
+        "severity": null,
+        "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-networking-policies/networking-29"
+      }
+    ]
+  }
+}

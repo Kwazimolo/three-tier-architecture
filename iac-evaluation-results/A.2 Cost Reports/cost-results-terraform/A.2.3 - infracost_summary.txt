@@ -1,0 +1,61 @@
+Project: main
+
+ Name                                                         Monthly Qty  Unit              Monthly Cost   
+                                                                                                            
+ module.networking.aws_nat_gateway.app_tier_nat[0]                                                          
+ ├─ NAT gateway                                                       730  hours                   $35.04   
+ └─ Data processed                                         Monthly cost depends on usage: $0.048 per GB     
+                                                                                                            
+ module.networking.aws_nat_gateway.app_tier_nat[1]                                                          
+ ├─ NAT gateway                                                       730  hours                   $35.04   
+ └─ Data processed                                         Monthly cost depends on usage: $0.048 per GB     
+                                                                                                            
+ module.networking.aws_nat_gateway.db_tier_nat[0]                                                           
+ ├─ NAT gateway                                                       730  hours                   $35.04   
+ └─ Data processed                                         Monthly cost depends on usage: $0.048 per GB     
+                                                                                                            
+ module.networking.aws_nat_gateway.db_tier_nat[1]                                                           
+ ├─ NAT gateway                                                       730  hours                   $35.04   
+ └─ Data processed                                         Monthly cost depends on usage: $0.048 per GB     
+                                                                                                            
+ module.load_balancing.aws_lb.app_alb                                                                       
+ ├─ Application load balancer                                         730  hours                   $18.40   
+ └─ Load balancer capacity units                           Monthly cost depends on usage: $5.84 per LCU     
+                                                                                                            
+ module.database.aws_db_instance.data_tier_db[0]                                                            
+ ├─ Database instance (on-demand, Single-AZ, db.t3.micro)             730  hours                   $13.14   
+ └─ Storage (general purpose SSD, gp2)                                 10  GB                       $1.27   
+                                                                                                            
+ module.database.aws_db_instance.data_tier_db[1]                                                            
+ ├─ Database instance (on-demand, Single-AZ, db.t3.micro)             730  hours                   $13.14   
+ └─ Storage (general purpose SSD, gp2)                                 10  GB                       $1.27   
+                                                                                                            
+ module.compute.aws_instance.app_tier_ec2[0]                                                                
+ ├─ Instance usage (Linux/UNIX, on-demand, t2.micro)                  730  hours                    $9.20   
+ └─ root_block_device                                                                                       
+    └─ Storage (general purpose SSD, gp2)                               8  GB                       $0.88   
+                                                                                                            
+ module.compute.aws_instance.app_tier_ec2[1]                                                                
+ ├─ Instance usage (Linux/UNIX, on-demand, t2.micro)                  730  hours                    $9.20   
+ └─ root_block_device                                                                                       
+    └─ Storage (general purpose SSD, gp2)                               8  GB                       $0.88   
+                                                                                                            
+ module.compute.aws_instance.bastion_ec2[0]                                                                 
+ ├─ Instance usage (Linux/UNIX, on-demand, t2.micro)                  730  hours                    $9.20   
+ └─ root_block_device                                                                                       
+    └─ Storage (general purpose SSD, gp2)                               8  GB                       $0.88   
+                                                                                                            
+ OVERALL TOTAL                                                                                   $217.61 
+
+*Usage costs can be estimated by updating Infracost Cloud settings, see docs for other options.
+
+──────────────────────────────────
+45 cloud resources were detected:
+∙ 10 were estimated
+∙ 35 were free
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃ Project                                            ┃ Baseline cost ┃ Usage cost* ┃ Total cost ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━╋━━━━━━━━━━━━┫
+┃ main                                               ┃          $218 ┃           - ┃       $218 ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━┻━━━━━━━━━━━━┛

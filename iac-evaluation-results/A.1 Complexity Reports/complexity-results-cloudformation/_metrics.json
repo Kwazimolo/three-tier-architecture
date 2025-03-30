@@ -1,0 +1,7 @@
+{
+  "tool": "cloudformation",
+  "total_files": 6,
+  "total_lines": 1191,
+  "resource_count": 55,
+  "module_count": 5
+}

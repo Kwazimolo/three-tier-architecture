@@ -1,0 +1,73 @@
+{
+  "tool": "terraform",
+  "summary": {
+    "total_checks": 23,
+    "passed_checks": 17,
+    "failed_checks": 6,
+    "skipped_checks": 0,
+    "parsing_errors": 0,
+    "resource_count": 38,
+    "checkov_version": "3.2.390"
+  },
+  "security_assessment": {
+    "pass_percentage": 73.91,
+    "security_score": 73.91,
+    "total_resources": 38
+  },
+  "failure_analysis": {
+    "total_failures": 6,
+    "failure_categories": {
+      "Ensure": 6
+    },
+    "detailed_failures": [
+      {
+        "check_id": "CKV_AWS_8",
+        "bc_check_id": "BC_AWS_GENERAL_13",
+        "check_name": "Ensure all data stored in the Launch configuration or instance Elastic Blocks Store is securely encrypted",
+        "resource": "module.compute.aws_instance.app_tier_ec2[0]",
+        "severity": null,
+        "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/general-13"
+      },
+      {
+        "check_id": "CKV_AWS_8",
+        "bc_check_id": "BC_AWS_GENERAL_13",
+        "check_name": "Ensure all data stored in the Launch configuration or instance Elastic Blocks Store is securely encrypted",
+        "resource": "module.compute.aws_instance.bastion_ec2[0]",
+        "severity": null,
+        "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/general-13"
+      },
+      {
+        "check_id": "CKV_AWS_8",
+        "bc_check_id": "BC_AWS_GENERAL_13",
+        "check_name": "Ensure all data stored in the Launch configuration or instance Elastic Blocks Store is securely encrypted",
+        "resource": "module.compute.aws_instance.app_tier_ec2[1]",
+        "severity": null,
+        "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/general-13"
+      },
+      {
+        "check_id": "CKV_AWS_16",
+        "bc_check_id": "BC_AWS_GENERAL_4",
+        "check_name": "Ensure all data stored in the RDS is securely encrypted at rest",
+        "resource": "module.database.aws_db_instance.data_tier_db[0]",
+        "severity": null,
+        "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/general-4"
+      },
+      {
+        "check_id": "CKV_AWS_16",
+        "bc_check_id": "BC_AWS_GENERAL_4",
+        "check_name": "Ensure all data stored in the RDS is securely encrypted at rest",
+        "resource": "module.database.aws_db_instance.data_tier_db[1]",
+        "severity": null,
+        "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/general-4"
+      },
+      {
+        "check_id": "CKV_AWS_2",
+        "bc_check_id": "BC_AWS_NETWORKING_29",
+        "check_name": "Ensure ALB protocol is HTTPS",
+        "resource": "module.load_balancing.aws_lb_listener.app_listener",
+        "severity": null,
+        "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-networking-policies/networking-29"
+      }
+    ]
+  }
+}

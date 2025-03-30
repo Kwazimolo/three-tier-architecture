@@ -1,0 +1,31 @@
+{
+  "tool": "terraform",
+  "resource_count": 29,
+  "total_files": 17,
+  "total_lines": 601,
+  "module_count": 5,
+  "resource_types": {
+    "aws_security_group": 5,
+    "aws_vpc": 1,
+    "aws_internet_gateway": 1,
+    "aws_route_table": 3,
+    "aws_subnet": 3,
+    "aws_route_table_association": 3,
+    "aws_nat_gateway": 2,
+    "aws_eip": 2,
+    "aws_db_subnet_group": 1,
+    "aws_db_instance": 1,
+    "aws_lb": 1,
+    "aws_lb_target_group": 1,
+    "aws_lb_listener": 1,
+    "aws_lb_target_group_attachment": 1,
+    "aws_key_pair": 1,
+    "aws_instance": 2
+  },
+  "resource_type_count": 16,
+  "graph_nodes": 54,
+  "graph_edges": 54,
+  "graph_avg_degree": 2.0,
+  "raw_complexity_score": 64.0,
+  "normalised_complexity_score": 19.8 
+}

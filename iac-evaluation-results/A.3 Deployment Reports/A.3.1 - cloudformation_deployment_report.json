@@ -1,0 +1,13 @@
+{
+  "tool": "cloudformation",
+  "stack_name": "three-tier-architecture",
+  "deploy_time_seconds": 779,
+  "total_time_seconds": 779,
+  "success": true,
+  "api_calls": {
+    "total_count": 114,
+    "service_breakdown": {
+      "cloudformation": 114
+    }
+  }
+}

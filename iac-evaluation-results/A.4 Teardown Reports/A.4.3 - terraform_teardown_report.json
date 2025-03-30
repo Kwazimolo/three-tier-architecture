@@ -1,0 +1,8 @@
+{
+  "tool": "terraform",
+  "init_time_seconds": 5,
+  "destroy_time_seconds": 332,
+  "total_time_seconds": 337,
+  "success": true,
+  "overall_teardown_time_seconds": 337
+}

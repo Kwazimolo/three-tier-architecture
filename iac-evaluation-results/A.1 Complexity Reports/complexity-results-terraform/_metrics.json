@@ -1,0 +1,7 @@
+{
+  "tool": "terraform",
+  "total_files": 17,
+  "total_lines": 601,
+  "resource_count": 29,
+  "module_count": 5
+}
