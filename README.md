@@ -1,1 +1,1 @@
-# tree-tier-architecture
+# three-tier-architecture
